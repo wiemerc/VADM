@@ -1,0 +1,6 @@
+generator = Program ('m68kmake.c')
+gencode = Command ('m68kops.h', 'm68k_in.c', ['./m68kmake'])
+Depends (gencode, generator)
+env = Environment()
+env.Append(CCFLAGS = '-Wall -g')
+env.Program ('vade', ['vade.c', 'm68kcpu.c', 'm68kops.c', 'm68kopnz.c', 'm68kopdm.c', 'm68kopac.c', 'm68kdasm.c'])
