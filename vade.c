@@ -144,30 +144,6 @@ unsigned int m68k_read_memory_32(unsigned int address)
         return 0xdeadbeef;
 }
 
-unsigned int m68k_read_immediate_16(unsigned int address)
-{
-    printf("16 bit immediate read from address 0x%08x\n", address);
-    if ((address >= ADDR_ROM_START) && (address <= ADDR_ROM_END - 1))
-        return READ_WORD(g_rom, address - ADDR_ROM_START);
-    else
-        return 0xdead;
-}
-
-unsigned int m68k_read_immediate_32(unsigned int address)
-{
-    printf("32 bit immediate read from address 0x%08x\n", address);
-    // We need to detect two special addresses where the CPU reads the initial values for its SSP and PC from upon reset.
-    // On the Amiga this was done by shadowing these addresses to the ROM where the values were stored.
-    if (address == ADDR_INITIAL_SSP)
-        return ADDR_STACK_START;
-    else if (address == ADDR_INITIAL_PC)
-        return ADDR_ROM_START;
-    else if ((address >= ADDR_ROM_START) && (address <= ADDR_ROM_END - 3))
-        return READ_LONG(g_rom, address - ADDR_ROM_START);
-    else
-        return 0xdeadbeef;
-}
-
 void m68k_write_memory_8(unsigned int address, unsigned int value)
 {
     printf("8 bit write to address 0x%08x, value = 0x%02x\n", address, value);
