@@ -43,75 +43,24 @@ static uint8_t *g_ram;
 #define WRITE_LONG(BASE, ADDR, VAL) (BASE)[ADDR] = ((VAL)>>24) & 0xff; (BASE)[(ADDR)+1] = ((VAL)>>16)&0xff; (BASE)[(ADDR)+2] = ((VAL)>>8)&0xff;	 (BASE)[(ADDR)+3] = (VAL)&0xff
 
 
-/* Exit with an error message.  Use printf syntax. */
-void exit_error(char *fmt, ...)
+void m68k_instr_callback()
 {
-    static int guard_val = 0;
-    char buff[100];
-    unsigned int pc;
-    va_list args;
-
-    if (guard_val)
-        return;
-    else
-        guard_val = 1;
-
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-    fprintf(stderr, "\n");
-    pc = m68k_get_reg(NULL, M68K_REG_PPC);
-    m68k_disassemble(buff, pc, M68K_CPU_TYPE_68000);
-    fprintf(stderr, "At %04x: %s\n", pc, buff);
-
-    exit(EXIT_FAILURE);
-}
-
-
-unsigned int m68k_read_disassembler_16(unsigned int address)
-{
-    if ((address >= ADDR_ROM_START) && (address <= ADDR_ROM_END - 1))
-        return READ_WORD(g_rom, address - ADDR_ROM_START);
-    else
-        exit_error("disassembler attempted to read word from ROM address %08x", address);
-}
-
-unsigned int m68k_read_disassembler_32(unsigned int address)
-{
-    if ((address >= ADDR_ROM_START) && (address <= ADDR_ROM_END - 3))
-        return READ_LONG(g_rom, address - ADDR_ROM_START);
-    else
-        exit_error("disassembler attempted to read word from ROM address %08x", address);
-}
-
-
-void hexdump(char *buf, unsigned int pc, unsigned int length)
-{
-    char *ptr = buf;
-
-    for (; length > 0; length -= 2) {
-        sprintf(ptr, "%04x", m68k_read_disassembler_16(pc));
-        pc += 2;
-        ptr += 4;
-        if (length > 2)
-            *ptr++ = ' ';
-    }
-}
-
-void cpu_instr_callback()
-{
-    static char instr_buf[100];
-    static char hexbuf[100];
+    static char instr[100];
+    static char hexdump[100];
+    static char *p;
     static unsigned int pc;
     static unsigned int instr_size;
 
     pc = m68k_get_reg(NULL, M68K_REG_PC);
-    instr_size = m68k_disassemble(instr_buf, pc, M68K_CPU_TYPE_68000);
-    hexdump(hexbuf, pc, instr_size);
-    printf("next instruction at 0x%06x: %-20s: %s\n", pc, hexbuf, instr_buf);
+    instr_size = m68k_disassemble(instr, pc, M68K_CPU_TYPE_68000);
+    for (p = hexdump; instr_size > 0; instr_size -= 2, p +=4, pc += 2) {
+        sprintf(hexdump, "%04x", m68k_read_disassembler_16(pc));
+        if (instr_size > 2)
+            *p++ = ' ';
+    }
+    printf("next instruction at 0x%06x: %-20s: %s\n", pc, hexdump, instr);
     fflush(stdout);
 }
-
 
 
 unsigned int m68k_read_memory_8(unsigned int address)
@@ -143,6 +92,12 @@ unsigned int m68k_read_memory_32(unsigned int address)
     else
         return 0xdeadbeef;
 }
+
+
+// needed for the m68k_disassemble() function
+unsigned int m68k_read_disassembler_16(unsigned int address) {m68k_read_memory_16(address);}
+unsigned int m68k_read_disassembler_32(unsigned int address) {m68k_read_memory_32(address);}
+
 
 void m68k_write_memory_8(unsigned int address, unsigned int value)
 {
