@@ -54,8 +54,9 @@ void m68k_instr_callback()
     pc = m68k_get_reg(NULL, M68K_REG_PC);
     printf("next instruction at 0x%06x: ", pc);
     instr_size = m68k_disassemble(instr, pc, M68K_CPU_TYPE_68000);
+    // TODO: hexdump shows only last word of instruction
     for (p = hexdump; instr_size > 0; instr_size -= 2, p +=4, pc += 2) {
-        sprintf(hexdump, "%04x", m68k_read_disassembler_16(pc));
+        sprintf(hexdump, "%04x", m68k_read_disassembler_16(pc)); 
         if (instr_size > 2)
             *p++ = ' ';
     }
@@ -84,9 +85,9 @@ unsigned int m68k_read_memory_32(unsigned int address)
     printf("32 bit read from address 0x%08x\n", address);
     // We need to detect two special addresses where the CPU reads the initial values for its SSP and PC from upon reset.
     // On the Amiga this was done by shadowing these addresses to the ROM where the values were stored.
-    // TODO: What is the initial SSP? The highest or the lowest address?
     if (address == ADDR_INITIAL_SSP)
-        return ADDR_STACK_START;
+        // The initial SSP is the first address above the stack area because the stack grows from high to low addresses.
+        return ADDR_STACK_END + 1;
     else if (address == ADDR_INITIAL_PC)
         return ADDR_CODE_START;
     else if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END - 3))
@@ -97,8 +98,21 @@ unsigned int m68k_read_memory_32(unsigned int address)
 
 
 // needed for the m68k_disassemble() function
-unsigned int m68k_read_disassembler_16(unsigned int address) {m68k_read_memory_16(address);}
-unsigned int m68k_read_disassembler_32(unsigned int address) {m68k_read_memory_32(address);}
+unsigned int m68k_read_disassembler_16(unsigned int address)
+{
+    if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END - 1))
+        return READ_WORD(g_mem, address);
+    else
+        return 0xdead;
+}
+
+unsigned int m68k_read_disassembler_32(unsigned int address)
+{
+    if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END - 3))
+        return READ_LONG(g_mem, address);
+    else
+        return 0xdeadbeef;
+}
 
 
 void m68k_write_memory_8(unsigned int address, unsigned int value)
@@ -141,8 +155,15 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // fill code area with NOPs
-    for (p = (uint16_t *) (g_mem + ADDR_CODE_START); p < (uint16_t *) (g_mem + ADDR_CODE_END); ++p)
+    // test code (in reversed byte oder)
+    p = (uint16_t *) (g_mem + ADDR_CODE_START);
+    *p++ = 0x7c2c;      // move.l #$deadbeef, a6
+    *p++ = 0xadde;
+    *p++ = 0xefbe;
+    *p++ = 0x564e;      // link a6, #$0
+    *p++ = 0x0000;
+    // fill rest of code area with NOPs
+    for (p = (uint16_t *) (g_mem + ADDR_CODE_START + 10); p < (uint16_t *) (g_mem + ADDR_CODE_END); ++p)
         *p = 0x714e;
 
     m68k_init();
