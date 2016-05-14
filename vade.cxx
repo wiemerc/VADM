@@ -9,11 +9,26 @@
 //
 
 
-#include <stdio.h>
+// standard headers
 #include <stdint.h>
-#include <stdlib.h>
 
+// Apache log4cxx
+#include "log4cxx/logger.h"
+#include "log4cxx/propertyconfigurator.h"
+
+// Poco libraries
+#include "Poco/Format.h"
+#include "Poco/FileStream.h"
+#include "Poco/BinaryReader.h"
+
+extern "C"
+{
+// Musashi headers
 #include "Musashi/m68k.h"
+
+// Amiga headers
+#include "dos/doshunks.h"
+};
 
 
 // memory layout
@@ -29,6 +44,9 @@
 #define ADDR_INITIAL_PC  0x00000004     // address that contains the initial value for the PC upon reset of the CPU
 
 
+// global logger
+log4cxx::LoggerPtr g_logger;
+
 // global pointer to memory
 static uint8_t *g_mem;
 
@@ -43,37 +61,35 @@ static uint8_t *g_mem;
 #define WRITE_LONG(BASE, ADDR, VAL) (BASE)[ADDR] = ((VAL)>>24) & 0xff; (BASE)[(ADDR)+1] = ((VAL)>>16)&0xff; (BASE)[(ADDR)+2] = ((VAL)>>8)&0xff;	 (BASE)[(ADDR)+3] = (VAL)&0xff
 
 
+extern "C"
+{
 void m68k_instr_callback()
 {
-    static char instr[100];
-    static char hexdump[100];
-    static char *p;
-    static unsigned int pc;
-    static unsigned int instr_size;
+    char instr[100];
+    std::string dump;
+    unsigned int pc;
+    unsigned int nbytes;
 
     pc = m68k_get_reg(NULL, M68K_REG_PC);
-    printf("next instruction at 0x%06x: ", pc);
-    instr_size = m68k_disassemble(instr, pc, M68K_CPU_TYPE_68000);
-    // TODO: hexdump shows only last word of instruction
-    for (p = hexdump; instr_size > 0; instr_size -= 2, p +=4, pc += 2) {
-        sprintf(hexdump, "%04x", m68k_read_disassembler_16(pc)); 
-        if (instr_size > 2)
-            *p++ = ' ';
+    nbytes = m68k_disassemble(instr, pc, M68K_CPU_TYPE_68000);
+    while (nbytes > 0) {
+        dump += Poco::format("%04x ", m68k_read_disassembler_16(pc));
+        nbytes -= 2;
+        pc += 2;
     }
-    printf("%-20s: %s\n", hexdump, instr);
-    fflush(stdout);
+    LOG4CXX_DEBUG(g_logger, Poco::format("next instruction at 0x%06x: %-20s: %s", pc, dump, std::string(instr)));
 }
 
 
 unsigned int m68k_read_memory_8(unsigned int address)
 {
-    printf("8 bit read from address 0x%08x - NOT IMPLEMENTED\n", address);
+    LOG4CXX_DEBUG(g_logger, Poco::format("8 bit read from address 0x%08x - NOT IMPLEMENTED", address));
     return 0x55;
 }
 
 unsigned int m68k_read_memory_16(unsigned int address)
 {
-    printf("16 bit read from address 0x%08x\n", address);
+    LOG4CXX_DEBUG(g_logger, Poco::format("16 bit read from address 0x%08x", address));
     if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END - 1))
         return READ_WORD(g_mem, address);
     else
@@ -82,7 +98,7 @@ unsigned int m68k_read_memory_16(unsigned int address)
 
 unsigned int m68k_read_memory_32(unsigned int address)
 {
-    printf("32 bit read from address 0x%08x\n", address);
+    LOG4CXX_DEBUG(g_logger, Poco::format("32 bit read from address 0x%08x", address));
     // We need to detect two special addresses where the CPU reads the initial values for its SSP and PC from upon reset.
     // On the Amiga this was done by shadowing these addresses to the ROM where the values were stored.
     if (address == ADDR_INITIAL_SSP)
@@ -117,46 +133,78 @@ unsigned int m68k_read_disassembler_32(unsigned int address)
 
 void m68k_write_memory_8(unsigned int address, unsigned int value)
 {
-    printf("8 bit write to address 0x%08x, value = 0x%02x\n", address, value);
+    LOG4CXX_DEBUG(g_logger, Poco::format("8 bit write to address 0x%08x, value = 0x%02x", address, value));
     if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END))
         WRITE_BYTE(g_mem, address, value);
     else
-        printf("illegal write access to address 0x%08x", address);
+        LOG4CXX_DEBUG(g_logger, Poco::format("illegal write access to address 0x%08x", address));
 }
 
 void m68k_write_memory_16(unsigned int address, unsigned int value)
 {
-    printf("16 bit write to address 0x%08x, value = 0x%04x\n", address, value);
+    LOG4CXX_DEBUG(g_logger, Poco::format("16 bit write to address 0x%08x, value = 0x%04x", address, value));
     if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END - 1)) {
         WRITE_WORD(g_mem, address, value);
     }
     else
-        printf("illegal write access to address 0x%08x", address);
+        LOG4CXX_DEBUG(g_logger, Poco::format("illegal write access to address 0x%08x", address));
 }
 
 void m68k_write_memory_32(unsigned int address, unsigned int value)
 {
-    printf("32 bit write to address 0x%08x, value = 0x%08x\n", address, value);
+    LOG4CXX_DEBUG(g_logger, Poco::format("32 bit write to address 0x%08x, value = 0x%08x", address, value));
     if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END - 3)) {
         WRITE_LONG(g_mem, address, value);
     }
     else
-        printf("illegal write access to address 0x%08x", address);
+        LOG4CXX_DEBUG(g_logger, Poco::format("illegal write access to address 0x%08x", address));
 }
+};
 
 
 int main(int argc, char *argv[])
 {
-    uint16_t *p;
+    // setup logging
+    g_logger = log4cxx::Logger::getLogger("tftpd");
+    log4cxx::PropertyConfigurator::configure("logging.properties");
 
+/*
     // allocate memory
-    if (!(g_mem = malloc(ADDR_MEM_END - ADDR_MEM_START + 1))) {
-        printf("could not allocate memory\n");
+    if (!(g_mem = (uint8_t *) malloc(ADDR_MEM_END - ADDR_MEM_START + 1))) {
+        LOG4CXX_ERROR(g_logger, "could not allocate memory");
         return 1;
     }
+*/
 
+    //
+    // load executable
+    //
+    if (argc != 2) {
+        LOG4CXX_ERROR(g_logger, "usage: vade <program>");
+        return 1;
+    }
+    try
+    {
+        Poco::FileInputStream is(argv[1]);
+        Poco::BinaryReader::BinaryReader reader(is, Poco::BinaryReader::BIG_ENDIAN_BYTE_ORDER);
+        uint32_t htype;
+        reader >> htype;
+        LOG4CXX_INFO(g_logger, "hunk type = " << htype);
+        switch (htype)
+        {
+            case HUNK_HEADER:
+                break;
+        }
+    }
+    catch (std::exception &e)
+    {
+        LOG4CXX_ERROR(g_logger, "exception occurred while loading executable: " << e.what());
+        return 1;
+    }
+    return 0;
+/*
     // test code (in reversed byte oder)
-    p = (uint16_t *) (g_mem + ADDR_CODE_START);
+    uint16_t *p = (uint16_t *) (g_mem + ADDR_CODE_START);
     *p++ = 0x7c2c;      // move.l #$deadbeef, a6
     *p++ = 0xadde;
     *p++ = 0xefbe;
@@ -165,11 +213,14 @@ int main(int argc, char *argv[])
     // fill rest of code area with NOPs
     for (p = (uint16_t *) (g_mem + ADDR_CODE_START + 10); p < (uint16_t *) (g_mem + ADDR_CODE_END); ++p)
         *p = 0x714e;
+*/
 
+/*
     m68k_init();
     m68k_set_cpu_type(M68K_CPU_TYPE_68000);
     m68k_pulse_reset();
     m68k_execute(100);
+*/
 
     return 0;
 }
