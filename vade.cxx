@@ -82,7 +82,7 @@ void m68k_instr_callback()
 
 
 // TODO: throw exception in case of illegal memory access
-unsigned int m68k_read_memory_8(unsigned int address)
+unsigned int m68k_read_8(unsigned int address)
 {
     LOG4CXX_DEBUG(g_logger, Poco::format("8 bit read from address 0x%08x", address));
     if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END))
@@ -91,7 +91,7 @@ unsigned int m68k_read_memory_8(unsigned int address)
         return 0x55;
 }
 
-unsigned int m68k_read_memory_16(unsigned int address)
+unsigned int m68k_read_16(unsigned int address)
 {
     LOG4CXX_DEBUG(g_logger, Poco::format("16 bit read from address 0x%08x", address));
     if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END - 1))
@@ -100,7 +100,7 @@ unsigned int m68k_read_memory_16(unsigned int address)
         return 0xdead;
 }
 
-unsigned int m68k_read_memory_32(unsigned int address)
+unsigned int m68k_read_32(unsigned int address)
 {
     LOG4CXX_DEBUG(g_logger, Poco::format("32 bit read from address 0x%08x", address));
     // We need to detect two special addresses where the CPU reads the initial values for its SSP and PC from upon reset.
@@ -135,7 +135,7 @@ unsigned int m68k_read_disassembler_32(unsigned int address)
 }
 
 
-void m68k_write_memory_8(unsigned int address, unsigned int value)
+void m68k_write_8(unsigned int address, unsigned int value)
 {
     LOG4CXX_DEBUG(g_logger, Poco::format("8 bit write to address 0x%08x, value = 0x%02x", address, value));
     if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END))
@@ -144,7 +144,7 @@ void m68k_write_memory_8(unsigned int address, unsigned int value)
         LOG4CXX_DEBUG(g_logger, Poco::format("illegal write access to address 0x%08x", address));
 }
 
-void m68k_write_memory_16(unsigned int address, unsigned int value)
+void m68k_write_16(unsigned int address, unsigned int value)
 {
     LOG4CXX_DEBUG(g_logger, Poco::format("16 bit write to address 0x%08x, value = 0x%04x", address, value));
     if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END - 1)) {
@@ -154,7 +154,7 @@ void m68k_write_memory_16(unsigned int address, unsigned int value)
         LOG4CXX_DEBUG(g_logger, Poco::format("illegal write access to address 0x%08x", address));
 }
 
-void m68k_write_memory_32(unsigned int address, unsigned int value)
+void m68k_write_32(unsigned int address, unsigned int value)
 {
     LOG4CXX_DEBUG(g_logger, Poco::format("32 bit write to address 0x%08x, value = 0x%08x", address, value));
     if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END - 3)) {
