@@ -210,8 +210,10 @@ int main(int argc, char *argv[])
     g_logger = log4cxx::Logger::getLogger("tftpd");
     log4cxx::PropertyConfigurator::configure("logging.properties");
 
-    // allocate memory for our VM
+    // allocate memory for our VM and fill code area with NOPs
     g_mem = new uint8_t[ADDR_MEM_END - ADDR_MEM_START + 1];
+    for (uint16_t *p = (uint16_t *) (g_mem + ADDR_CODE_START + 10); p < (uint16_t *) (g_mem + ADDR_CODE_END); ++p)
+        *p = 0x714e;
 
     //
     // load executable
@@ -258,7 +260,6 @@ int main(int argc, char *argv[])
                     uint32_t nwords;
                     reader >> nwords;
                     LOG4CXX_DEBUG(g_logger, "size (in bytes) of code block: " << nwords * 4);
-                    // TODO: We need to insert a subroutine call before the actual code and pass the CLI arguments
                     reader.readRaw((char *) g_mem + hlocs[hnum], nwords * 4);
                     LOG4CXX_TRACE(g_logger, "hex dump of block:\n" << hexdump(g_mem + hlocs[hnum], nwords * 4));
                     break;
@@ -327,18 +328,23 @@ int main(int argc, char *argv[])
     *p++ = 0xefbe;
     *p++ = 0x564e;      // link a6, #$0
     *p++ = 0x0000;
-    // fill rest of code area with NOPs
-    for (p = (uint16_t *) (g_mem + ADDR_CODE_START + 10); p < (uint16_t *) (g_mem + ADDR_CODE_END); ++p)
-        *p = 0x714e;
 */
 
-/*
+    // initialize CPU
     m68k_init();
     m68k_set_cpu_type(M68K_CPU_TYPE_68000);
+    // TODO: Write inital values for SSP and PC into memory before executing the pulse reset instead of catching the addresses
     m68k_pulse_reset();
-    m68k_execute(1000);
-    LOG4CXX_TRACE(g_logger, "stack after execution of the program:\n" << hexdump(g_mem + ADDR_STACK_END - 32, 32));
-*/
+
+    // execute program
+    // TODO: We need to pass the CLI arguments to the program
+    LOG4CXX_TRACE(g_logger, "data area before execution of the program:\n" << hexdump(g_mem + 0x0080004c, 12));
+    m68k_write_32(ADDR_STACK_END - 3, ADDR_STACK_END - ADDR_STACK_START + 1);    // stack size
+    // TODO: Don't use fixed return address
+    m68k_write_32(ADDR_STACK_END - 7, ADDR_CODE_START + 0x1000);                 // return address
+    m68k_set_reg(M68K_REG_SP, ADDR_STACK_END - 7);
+    m68k_execute(2200);
+    LOG4CXX_TRACE(g_logger, "data area after execution of the program:\n" << hexdump(g_mem + 0x0080004c, 12));
 
     return 0;
 }
