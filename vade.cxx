@@ -86,7 +86,7 @@ void m68k_instr_callback()
 // TODO: throw exception in case of illegal memory access
 unsigned int m68k_read_8(unsigned int address)
 {
-    LOG4CXX_DEBUG(g_logger, Poco::format("8 bit read from address 0x%08x", address));
+    LOG4CXX_TRACE(g_logger, Poco::format("8 bit read from address 0x%08x", address));
     if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END))
         return READ_BYTE(g_mem, address);
     else
@@ -95,7 +95,7 @@ unsigned int m68k_read_8(unsigned int address)
 
 unsigned int m68k_read_16(unsigned int address)
 {
-    LOG4CXX_DEBUG(g_logger, Poco::format("16 bit read from address 0x%08x", address));
+    LOG4CXX_TRACE(g_logger, Poco::format("16 bit read from address 0x%08x", address));
     if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END - 1))
         return READ_WORD(g_mem, address);
     else
@@ -104,7 +104,7 @@ unsigned int m68k_read_16(unsigned int address)
 
 unsigned int m68k_read_32(unsigned int address)
 {
-    LOG4CXX_DEBUG(g_logger, Poco::format("32 bit read from address 0x%08x", address));
+    LOG4CXX_TRACE(g_logger, Poco::format("32 bit read from address 0x%08x", address));
     // We need to detect two special addresses where the CPU reads the initial values for its SSP and PC from upon reset.
     // On the Amiga this was done by shadowing these addresses to the ROM where the values were stored.
     if (address == ADDR_INITIAL_SSP)
@@ -139,31 +139,31 @@ unsigned int m68k_read_disassembler_32(unsigned int address)
 
 void m68k_write_8(unsigned int address, unsigned int value)
 {
-    LOG4CXX_DEBUG(g_logger, Poco::format("8 bit write to address 0x%08x, value = 0x%02x", address, value));
+    LOG4CXX_TRACE(g_logger, Poco::format("8 bit write to address 0x%08x, value = 0x%02x", address, value));
     if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END))
         WRITE_BYTE(g_mem, address, value);
     else
-        LOG4CXX_DEBUG(g_logger, Poco::format("illegal write access to address 0x%08x", address));
+        LOG4CXX_TRACE(g_logger, Poco::format("illegal write access to address 0x%08x", address));
 }
 
 void m68k_write_16(unsigned int address, unsigned int value)
 {
-    LOG4CXX_DEBUG(g_logger, Poco::format("16 bit write to address 0x%08x, value = 0x%04x", address, value));
+    LOG4CXX_TRACE(g_logger, Poco::format("16 bit write to address 0x%08x, value = 0x%04x", address, value));
     if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END - 1)) {
         WRITE_WORD(g_mem, address, value);
     }
     else
-        LOG4CXX_DEBUG(g_logger, Poco::format("illegal write access to address 0x%08x", address));
+        LOG4CXX_TRACE(g_logger, Poco::format("illegal write access to address 0x%08x", address));
 }
 
 void m68k_write_32(unsigned int address, unsigned int value)
 {
-    LOG4CXX_DEBUG(g_logger, Poco::format("32 bit write to address 0x%08x, value = 0x%08x", address, value));
+    LOG4CXX_TRACE(g_logger, Poco::format("32 bit write to address 0x%08x, value = 0x%08x", address, value));
     if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END - 3)) {
         WRITE_LONG(g_mem, address, value);
     }
     else
-        LOG4CXX_DEBUG(g_logger, Poco::format("illegal write access to address 0x%08x", address));
+        LOG4CXX_TRACE(g_logger, Poco::format("illegal write access to address 0x%08x", address));
 }
 };
 
@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
     // allocate memory for our VM and fill code area with NOPs
     g_mem = new uint8_t[ADDR_MEM_END - ADDR_MEM_START + 1];
     for (uint16_t *p = (uint16_t *) (g_mem + ADDR_CODE_START + 10); p < (uint16_t *) (g_mem + ADDR_CODE_END); ++p)
-        *p = 0x714e;
+        *p = 0x404e;
 
     //
     // load executable
@@ -274,8 +274,8 @@ int main(int argc, char *argv[])
 
                 case HUNK_BSS:
                     LOG4CXX_INFO(g_logger, "hunk #" << hnum << ", block type = HUNK_BSS");
-                    LOG4CXX_ERROR(g_logger, "block type is not implemented");
-                    throw std::runtime_error ("block type not implemented");
+                    reader >> nwords;
+                    LOG4CXX_DEBUG(g_logger, "size (in bytes) of BSS block: " << nwords * 4);
                     break;
 
                 case HUNK_RELOC32:
@@ -302,6 +302,12 @@ int main(int argc, char *argv[])
                         }
                     }
                     LOG4CXX_TRACE(g_logger, "hex dump of block after applying relocs:\n" << hexdump(g_mem + hlocs[hnum], nwords * 4));
+                    break;
+
+                case HUNK_SYMBOL:
+                    LOG4CXX_INFO(g_logger, "hunk #" << hnum << ", block type = HUNK_END");
+                    LOG4CXX_ERROR(g_logger, "block type is not implemented");
+                    throw std::runtime_error ("block type not implemented");
                     break;
 
                 case HUNK_END:
@@ -338,13 +344,13 @@ int main(int argc, char *argv[])
 
     // execute program
     // TODO: We need to pass the CLI arguments to the program
-    LOG4CXX_TRACE(g_logger, "data area before execution of the program:\n" << hexdump(g_mem + 0x0080004c, 12));
+//    LOG4CXX_TRACE(g_logger, "data area before execution of the program:\n" << hexdump(g_mem + 0x0080004c, 12));
     m68k_write_32(ADDR_STACK_END - 3, ADDR_STACK_END - ADDR_STACK_START + 1);    // stack size
     // TODO: Don't use fixed return address
     m68k_write_32(ADDR_STACK_END - 7, ADDR_CODE_START + 0x1000);                 // return address
     m68k_set_reg(M68K_REG_SP, ADDR_STACK_END - 7);
-    m68k_execute(2200);
-    LOG4CXX_TRACE(g_logger, "data area after execution of the program:\n" << hexdump(g_mem + 0x0080004c, 12));
+    m68k_execute(300);
+//    LOG4CXX_TRACE(g_logger, "data area after execution of the program:\n" << hexdump(g_mem + 0x0080004c, 12));
 
     return 0;
 }
