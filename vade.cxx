@@ -85,6 +85,14 @@ void m68k_instr_callback()
 }
 
 
+void m68k_libcall_callback(unsigned int vector)
+{
+    unsigned int base = m68k_get_reg(NULL, M68K_REG_A6);
+    unsigned int offset = m68k_get_reg(NULL, M68K_REG_A6) - m68k_get_reg(NULL, M68K_REG_PC) + 2;
+    LOG4CXX_DEBUG(g_logger, Poco::format("trap occurred, base address = 0x%08x, offset = 0x%04x", base, offset));
+}
+
+
 // TODO: throw exception in case of illegal memory access
 unsigned int m68k_read_8(unsigned int address)
 {
