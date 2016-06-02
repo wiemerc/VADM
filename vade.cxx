@@ -42,6 +42,8 @@ extern "C"
 #define ADDR_STACK_END   0x007fffff     // 4MB stack (grows from high to low addresses)
 #define ADDR_CODE_START  0x00800000
 #define ADDR_CODE_END    0x00ffffff     // 8MB code
+#define ADDR_EXEC_BASE   0x00f00000
+#define ADDR_DOS_BASE    0x00f10000
 #define ADDR_INITIAL_SSP 0x00000000     // address that contains the initial value for the SSP upon reset of the CPU
 #define ADDR_INITIAL_PC  0x00000004     // address that contains the initial value for the PC upon reset of the CPU
 
@@ -105,14 +107,7 @@ unsigned int m68k_read_16(unsigned int address)
 unsigned int m68k_read_32(unsigned int address)
 {
     LOG4CXX_TRACE(g_logger, Poco::format("32 bit read from address 0x%08x", address));
-    // We need to detect two special addresses where the CPU reads the initial values for its SSP and PC from upon reset.
-    // On the Amiga this was done by shadowing these addresses to the ROM where the values were stored.
-    if (address == ADDR_INITIAL_SSP)
-        // The initial SSP is the first address above the stack area because the stack grows from high to low addresses.
-        return ADDR_STACK_END + 1;
-    else if (address == ADDR_INITIAL_PC)
-        return ADDR_CODE_START;
-    else if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END - 3))
+    if ((address >= ADDR_MEM_START) && (address <= ADDR_MEM_END - 3))
         return READ_LONG(g_mem, address);
     else
         return 0xdeadbeef;
@@ -339,18 +334,23 @@ int main(int argc, char *argv[])
     // initialize CPU
     m68k_init();
     m68k_set_cpu_type(M68K_CPU_TYPE_68000);
-    // TODO: Write inital values for SSP and PC into memory before executing the pulse reset instead of catching the addresses
+    // We need to initialize two special addresses where the CPU reads the initial values for its SSP and PC from upon reset.
+    // On the Amiga this was done by shadowing these addresses to the ROM where the values were stored.
+    // The initial SSP is the first address above the stack area because the stack grows from high to low addresses.
+    m68k_write_32(ADDR_INITIAL_SSP, ADDR_STACK_END + 1);
+    m68k_write_32(ADDR_INITIAL_PC, ADDR_CODE_START);
     m68k_pulse_reset();
 
     // execute program
     // TODO: We need to pass the CLI arguments to the program
-//    LOG4CXX_TRACE(g_logger, "data area before execution of the program:\n" << hexdump(g_mem + 0x0080004c, 12));
+    LOG4CXX_TRACE(g_logger, "BSS area before execution of the program:\n" << hexdump(g_mem + 0x008000a0, 8));
+    m68k_write_32(4, ADDR_EXEC_BASE);
     m68k_write_32(ADDR_STACK_END - 3, ADDR_STACK_END - ADDR_STACK_START + 1);    // stack size
     // TODO: Don't use fixed return address
     m68k_write_32(ADDR_STACK_END - 7, ADDR_CODE_START + 0x1000);                 // return address
     m68k_set_reg(M68K_REG_SP, ADDR_STACK_END - 7);
     m68k_execute(300);
-//    LOG4CXX_TRACE(g_logger, "data area after execution of the program:\n" << hexdump(g_mem + 0x0080004c, 12));
+    LOG4CXX_TRACE(g_logger, "BSS area after execution of the program:\n" << hexdump(g_mem + 0x008000a0, 8));
 
     return 0;
 }
