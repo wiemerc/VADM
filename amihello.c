@@ -5,5 +5,6 @@
 int cwmain(int argc, char **argv)
 {
     PutStr("hello, amiga\n");
+    Exit(0);
     return 0;
 }
