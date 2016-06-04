@@ -11,6 +11,7 @@
 
 // standard headers
 #include <stdint.h>
+#include <iostream>
 #include <vector>
 
 // Apache log4cxx
@@ -46,6 +47,7 @@ extern "C"
 #define ADDR_DOS_BASE    0x00f10000
 #define ADDR_INITIAL_SSP 0x00000000     // address that contains the initial value for the SSP upon reset of the CPU
 #define ADDR_INITIAL_PC  0x00000004     // address that contains the initial value for the PC upon reset of the CPU
+#define ADDR_EXV_TRAP_0   0x00000080     // exception vector for trap #0 (used for the library calls)
 
 
 // global logger
@@ -53,6 +55,32 @@ log4cxx::LoggerPtr g_logger;
 
 // global pointer to memory
 static uint8_t *g_mem;
+
+// global map of opened libraries
+class Library
+{
+public:
+    void call(const uint16_t offset)
+    {
+        uint32_t rc;
+        if (m_funcmap.find(offset) != m_funcmap.end()) {
+            rc = (this->*m_funcmap[offset])();
+            m68k_set_reg(M68K_REG_D0, rc);
+        }
+        else {
+            LOG4CXX_ERROR(g_logger, Poco::format("library routine with offset 0x%04x not found in map", (unsigned int) offset));
+            throw std::runtime_error("bad library call");
+        }
+    }
+
+protected:
+    typedef uint32_t (Library::*FUNCPTR)();
+
+    std::map <const uint16_t, FUNCPTR> m_funcmap;
+
+};
+
+std::map <uint32_t, Library *> g_libmap;
 
 
 // macros for reading / writing data
@@ -63,6 +91,55 @@ static uint8_t *g_mem;
 #define WRITE_BYTE(BASE, ADDR, VAL) (BASE)[ADDR] = (VAL)&0xff
 #define WRITE_WORD(BASE, ADDR, VAL) (BASE)[ADDR] = ((VAL)>>8) & 0xff; (BASE)[(ADDR)+1] = (VAL)&0xff
 #define WRITE_LONG(BASE, ADDR, VAL) (BASE)[ADDR] = ((VAL)>>24) & 0xff; (BASE)[(ADDR)+1] = ((VAL)>>16)&0xff; (BASE)[(ADDR)+2] = ((VAL)>>8)&0xff;	 (BASE)[(ADDR)+3] = (VAL)&0xff
+
+
+class DOSLibrary : public Library
+{
+public:
+    DOSLibrary()
+    {
+        m_funcmap[0x3b4] = (FUNCPTR) &DOSLibrary::PutStr;
+    }
+
+private:
+    uint32_t PutStr()
+    {
+        LOG4CXX_DEBUG(g_logger, "DOSLibrary::PutStr() was called");
+        const char *str = (const char *) g_mem + m68k_get_reg(NULL, M68K_REG_D1);
+        std::cout << str;
+        return 0;
+    }
+};
+
+
+class ExecLibrary : public Library
+{
+public:
+    ExecLibrary()
+    {
+        m_funcmap[0x228] = (FUNCPTR) &ExecLibrary::OpenLibrary;
+    }
+
+private:
+    uint32_t OpenLibrary()
+    {
+        LOG4CXX_DEBUG(g_logger, "ExecLibrary::OpenLibrary() was called");
+        const char *libname    = (const char *) g_mem + m68k_get_reg(NULL, M68K_REG_A1);
+        const uint32_t version = m68k_get_reg(NULL, M68K_REG_D0);
+        LOG4CXX_DEBUG(g_logger, "library name = " << libname << ", version = " << version);
+
+        if (strcmp(libname, "dos.library") == 0) {
+            LOG4CXX_DEBUG(g_logger, "opening dos.library");
+            g_libmap[ADDR_DOS_BASE] = new DOSLibrary();
+            return ADDR_DOS_BASE;
+        }
+        else {
+            // TODO: Should we throw an exception in case of errors?
+            LOG4CXX_ERROR(g_logger, "unknown library: " << libname);
+            return 0;
+        }
+    }
+};
 
 
 extern "C"
@@ -90,6 +167,12 @@ void m68k_libcall_callback(unsigned int vector)
     unsigned int base = m68k_get_reg(NULL, M68K_REG_A6);
     unsigned int offset = m68k_get_reg(NULL, M68K_REG_A6) - m68k_get_reg(NULL, M68K_REG_PC) + 2;
     LOG4CXX_DEBUG(g_logger, Poco::format("trap occurred, base address = 0x%08x, offset = 0x%04x", base, offset));
+    if (g_libmap.find(base) != g_libmap.end())
+        g_libmap[base]->call(offset);
+    else {
+        LOG4CXX_ERROR(g_logger, Poco::format("base address 0x%08x not found in map of opened libraries", base));
+        throw std::runtime_error("bad library call");
+    }
 }
 
 
@@ -213,10 +296,10 @@ int main(int argc, char *argv[])
     g_logger = log4cxx::Logger::getLogger("tftpd");
     log4cxx::PropertyConfigurator::configure("logging.properties");
 
-    // allocate memory for our VM and fill code area with NOPs
+    // allocate memory for our VM and fill code area with STOP instructions
     g_mem = new uint8_t[ADDR_MEM_END - ADDR_MEM_START + 1];
     for (uint16_t *p = (uint16_t *) (g_mem + ADDR_CODE_START + 10); p < (uint16_t *) (g_mem + ADDR_CODE_END); ++p)
-        *p = 0x404e;
+        *p = 0x724e;
 
     //
     // load executable
@@ -329,17 +412,9 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-/*
-    // test code (in reversed byte oder)
-    uint16_t *p = (uint16_t *) (g_mem + ADDR_CODE_START);
-    *p++ = 0x7c2c;      // move.l #$deadbeef, a6
-    *p++ = 0xadde;
-    *p++ = 0xefbe;
-    *p++ = 0x564e;      // link a6, #$0
-    *p++ = 0x0000;
-*/
-
+    //
     // initialize CPU
+    //
     m68k_init();
     m68k_set_cpu_type(M68K_CPU_TYPE_68000);
     // We need to initialize two special addresses where the CPU reads the initial values for its SSP and PC from upon reset.
@@ -349,16 +424,40 @@ int main(int argc, char *argv[])
     m68k_write_32(ADDR_INITIAL_PC, ADDR_CODE_START);
     m68k_pulse_reset();
 
+    //
     // execute program
+    //
     // TODO: We need to pass the CLI arguments to the program
-    LOG4CXX_TRACE(g_logger, "BSS area before execution of the program:\n" << hexdump(g_mem + 0x008000a0, 8));
-    m68k_write_32(4, ADDR_EXEC_BASE);
+
+    // open Exec library
+    m68k_write_32(4, ADDR_EXEC_BASE);                                            // base of Exec library
+    g_libmap[ADDR_EXEC_BASE] = new ExecLibrary();
+
+    // setup jump table for library routines
+    m68k_write_16(ADDR_EXEC_BASE - 0x228, 0x4e40);                               // TRAP + RTS for OpenLibrary()
+    m68k_write_16(ADDR_EXEC_BASE - 0x226, 0x4e75);
+    m68k_write_16(ADDR_DOS_BASE - 0x3b4, 0x4e40);                                // TRAP + RTS for PutStr()
+    m68k_write_16(ADDR_DOS_BASE - 0x3b2, 0x4e75);
+    m68k_write_16(ADDR_DOS_BASE - 0x090, 0x4e40);                                // TRAP + RTS for Exit()
+    m68k_write_16(ADDR_DOS_BASE - 0x088, 0x4e75);
+    m68k_write_32(ADDR_EXV_TRAP_0, ADDR_CODE_END - 1);                           // exception vector for traps
+    m68k_write_16(ADDR_CODE_END - 1, 0x4e73);                                    // RTE instruction
+
+    // setup stack
+    m68k_set_reg(M68K_REG_SP, ADDR_STACK_END - 7);                               // decrement SP
     m68k_write_32(ADDR_STACK_END - 3, ADDR_STACK_END - ADDR_STACK_START + 1);    // stack size
-    // TODO: Don't use fixed return address
-    m68k_write_32(ADDR_STACK_END - 7, ADDR_CODE_START + 0x1000);                 // return address
-    m68k_set_reg(M68K_REG_SP, ADDR_STACK_END - 7);
-    m68k_execute(300);
-    LOG4CXX_TRACE(g_logger, "BSS area after execution of the program:\n" << hexdump(g_mem + 0x008000a0, 8));
+    m68k_write_32(ADDR_STACK_END - 7, ADDR_CODE_END - 3);                        // return address (STOP instruction)
+
+    // run program
+    try
+    {
+        m68k_execute(INT32_MAX);
+    }
+    catch (std::exception &e)
+    {
+        LOG4CXX_FATAL(g_logger, "exception occurred while executing program: " << e.what());
+        return 1;
+    }
 
     return 0;
 }
