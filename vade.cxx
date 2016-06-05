@@ -23,6 +23,9 @@
 #include "Poco/FileStream.h"
 #include "Poco/BinaryReader.h"
 
+#include "libs.h"
+#include "reader.h"
+
 extern "C"
 {
 // Musashi headers
@@ -43,43 +46,18 @@ extern "C"
 #define ADDR_STACK_END   0x007fffff     // 4MB stack (grows from high to low addresses)
 #define ADDR_CODE_START  0x00800000
 #define ADDR_CODE_END    0x00ffffff     // 8MB code
-#define ADDR_EXEC_BASE   0x00f00000
-#define ADDR_DOS_BASE    0x00f10000
 #define ADDR_INITIAL_SSP 0x00000000     // address that contains the initial value for the SSP upon reset of the CPU
 #define ADDR_INITIAL_PC  0x00000004     // address that contains the initial value for the PC upon reset of the CPU
-#define ADDR_EXV_TRAP_0   0x00000080     // exception vector for trap #0 (used for the library calls)
+#define ADDR_EXV_TRAP_0   0x00000080    // exception vector for trap #0 (used for the library calls)
 
 
 // global logger
 log4cxx::LoggerPtr g_logger;
 
 // global pointer to memory
-static uint8_t *g_mem;
+uint8_t *g_mem;
 
 // global map of opened libraries
-class Library
-{
-public:
-    void call(const uint16_t offset)
-    {
-        uint32_t rc;
-        if (m_funcmap.find(offset) != m_funcmap.end()) {
-            rc = (this->*m_funcmap[offset])();
-            m68k_set_reg(M68K_REG_D0, rc);
-        }
-        else {
-            LOG4CXX_ERROR(g_logger, Poco::format("library routine with offset 0x%04x not found in map", (unsigned int) offset));
-            throw std::runtime_error("bad library call");
-        }
-    }
-
-protected:
-    typedef uint32_t (Library::*FUNCPTR)();
-
-    std::map <const uint16_t, FUNCPTR> m_funcmap;
-
-};
-
 std::map <uint32_t, Library *> g_libmap;
 
 
@@ -92,54 +70,6 @@ std::map <uint32_t, Library *> g_libmap;
 #define WRITE_WORD(BASE, ADDR, VAL) (BASE)[ADDR] = ((VAL)>>8) & 0xff; (BASE)[(ADDR)+1] = (VAL)&0xff
 #define WRITE_LONG(BASE, ADDR, VAL) (BASE)[ADDR] = ((VAL)>>24) & 0xff; (BASE)[(ADDR)+1] = ((VAL)>>16)&0xff; (BASE)[(ADDR)+2] = ((VAL)>>8)&0xff;	 (BASE)[(ADDR)+3] = (VAL)&0xff
 
-
-class DOSLibrary : public Library
-{
-public:
-    DOSLibrary()
-    {
-        m_funcmap[0x3b4] = (FUNCPTR) &DOSLibrary::PutStr;
-    }
-
-private:
-    uint32_t PutStr()
-    {
-        LOG4CXX_DEBUG(g_logger, "DOSLibrary::PutStr() was called");
-        const char *str = (const char *) g_mem + m68k_get_reg(NULL, M68K_REG_D1);
-        std::cout << str;
-        return 0;
-    }
-};
-
-
-class ExecLibrary : public Library
-{
-public:
-    ExecLibrary()
-    {
-        m_funcmap[0x228] = (FUNCPTR) &ExecLibrary::OpenLibrary;
-    }
-
-private:
-    uint32_t OpenLibrary()
-    {
-        LOG4CXX_DEBUG(g_logger, "ExecLibrary::OpenLibrary() was called");
-        const char *libname    = (const char *) g_mem + m68k_get_reg(NULL, M68K_REG_A1);
-        const uint32_t version = m68k_get_reg(NULL, M68K_REG_D0);
-        LOG4CXX_DEBUG(g_logger, "library name = " << libname << ", version = " << version);
-
-        if (strcmp(libname, "dos.library") == 0) {
-            LOG4CXX_DEBUG(g_logger, "opening dos.library");
-            g_libmap[ADDR_DOS_BASE] = new DOSLibrary();
-            return ADDR_DOS_BASE;
-        }
-        else {
-            // TODO: Should we throw an exception in case of errors?
-            LOG4CXX_ERROR(g_logger, "unknown library: " << libname);
-            return 0;
-        }
-    }
-};
 
 
 extern "C"
@@ -249,7 +179,7 @@ void m68k_write_32(unsigned int address, unsigned int value)
         WRITE_LONG(g_mem, address, value);
     }
     else
-        LOG4CXX_TRACE(g_logger, Poco::format("illegal write access to address 0x%08x", address));
+    LOG4CXX_TRACE(g_logger, Poco::format("illegal write access to address 0x%08x", address));
 }
 };
 
@@ -310,101 +240,8 @@ int main(int argc, char *argv[])
     }
     try
     {
-        Poco::FileInputStream exe(argv[1]);
-        Poco::BinaryReader::BinaryReader reader(exe, Poco::BinaryReader::BIG_ENDIAN_BYTE_ORDER);
-        uint32_t btype;                                 // block type
-        uint32_t hnum = 0;                              // hunk number
-        uint32_t hloc = ADDR_CODE_START;                // hunk location relative to the base address g_mem
-        std::vector <uint32_t> hlocs;                   // mapping of hunk numbers to locations
-        while (!reader.eof()) {
-            reader >> btype;
-            switch (btype)
-            {
-                case HUNK_HEADER:
-                    LOG4CXX_INFO(g_logger, "hunk #" << hnum << ", block type = HUNK_HEADER");
-                    uint32_t lword;
-                    reader >> lword;
-                    LOG4CXX_DEBUG(g_logger, "long words reserved for resident libraries: " << lword);
-                    reader >> lword;
-                    LOG4CXX_DEBUG(g_logger, "number of hunks: " << lword);
-                    uint32_t fhunk;
-                    reader >> fhunk;
-                    LOG4CXX_DEBUG(g_logger, "number of first hunk: " << fhunk);
-                    uint32_t lhunk;
-                    reader >> lhunk;
-                    LOG4CXX_DEBUG(g_logger, "number of last hunk: " << lhunk);
-                    for (int i = fhunk; i <= lhunk; i++) {
-                        reader >> lword;
-                        LOG4CXX_DEBUG(g_logger, "size (in bytes) of hunk #" << i << " = " << lword * 4 << ", location = " << Poco::format("0x%08x", hloc));
-                        hlocs.push_back(hloc);
-                        hloc += lword * 4;
-                    }
-                    break;
-
-                case HUNK_CODE:
-                    LOG4CXX_INFO(g_logger, "hunk #" << hnum << ", block type = HUNK_CODE");
-                    uint32_t nwords;
-                    reader >> nwords;
-                    LOG4CXX_DEBUG(g_logger, "size (in bytes) of code block: " << nwords * 4);
-                    reader.readRaw((char *) g_mem + hlocs[hnum], nwords * 4);
-                    LOG4CXX_TRACE(g_logger, "hex dump of block:\n" << hexdump(g_mem + hlocs[hnum], nwords * 4));
-                    break;
-
-                case HUNK_DATA:
-                    LOG4CXX_INFO(g_logger, "hunk #" << hnum << ", block type = HUNK_DATA");
-                    reader >> nwords;
-                    LOG4CXX_DEBUG(g_logger, "size (in bytes) of data block: " << nwords * 4);
-                    reader.readRaw((char *) g_mem + hlocs[hnum], nwords * 4);
-                    LOG4CXX_TRACE(g_logger, "hex dump of block:\n" << hexdump(g_mem + hlocs[hnum], nwords * 4));
-                    break;
-
-                case HUNK_BSS:
-                    LOG4CXX_INFO(g_logger, "hunk #" << hnum << ", block type = HUNK_BSS");
-                    reader >> nwords;
-                    LOG4CXX_DEBUG(g_logger, "size (in bytes) of BSS block: " << nwords * 4);
-                    break;
-
-                case HUNK_RELOC32:
-                    LOG4CXX_INFO(g_logger, "hunk #" << hnum << ", block type = HUNK_RELOC32");
-                    uint32_t noffsets;
-                    while (true) {
-                        reader >> noffsets;
-                        if (noffsets == 0)
-                            break;
-
-                        uint32_t refhnum;
-                        reader >> refhnum;
-                        if (hnum > lhunk) {
-                            LOG4CXX_ERROR(g_logger, "reloc referring to hunk #" << refhnum << " found while executable contains only " << lhunk + 1 << " hunks");
-                            throw std::runtime_error ("bad executable");
-                        }
-
-                        uint32_t  offset;
-                        for (int i = 0; i < noffsets; i++) {
-                            reader >> offset;
-                            LOG4CXX_DEBUG(g_logger, "applying reloc referring to hunk #" << refhnum << ", offset = " << offset);
-                            // TODO: Is the byte order of the address correct?
-                            m68k_write_32(hlocs[hnum] + offset, m68k_read_32(hlocs[hnum] + offset) + hlocs[refhnum]);
-                        }
-                    }
-                    LOG4CXX_TRACE(g_logger, "hex dump of block after applying relocs:\n" << hexdump(g_mem + hlocs[hnum], nwords * 4));
-                    break;
-
-                case HUNK_SYMBOL:
-                    LOG4CXX_INFO(g_logger, "hunk #" << hnum << ", block type = HUNK_END");
-                    LOG4CXX_ERROR(g_logger, "block type is not implemented");
-                    throw std::runtime_error ("block type not implemented");
-                    break;
-
-                case HUNK_END:
-                    LOG4CXX_INFO(g_logger, "hunk #" << hnum << ", block type = HUNK_END");
-                    ++hnum;
-                    break;
-
-                default:
-                    LOG4CXX_ERROR(g_logger, "unknown block type: " << btype);
-            }
-        }
+        AmiHunkReader reader = AmiHunkReader();
+        reader.read(argv[1], ADDR_CODE_START);
     }
     catch (std::exception &e)
     {
