@@ -26,7 +26,7 @@ void m68k_instr_callback()
 }
 
 
-void m68k_libcall_callback(unsigned int vector)
+void m68k_trap_callback()
 {
     unsigned int base = m68k_get_reg(NULL, M68K_REG_A6);
     unsigned int offset = m68k_get_reg(NULL, M68K_REG_A6) - m68k_get_reg(NULL, M68K_REG_PC) + 2;

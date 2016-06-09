@@ -1732,7 +1732,7 @@ INLINE void m68ki_exception_trap(uint vector)
 /* Trap#n stacks a 0 frame but behaves like group2 otherwise */
 INLINE void m68ki_exception_trapN(uint vector)
 {
-	m68k_libcall_callback(vector);
+	m68k_trap_callback();
 	uint sr = m68ki_init_exception();
 	m68ki_stack_frame_0000(REG_PC, sr, vector);
 	m68ki_jump_vector(vector);

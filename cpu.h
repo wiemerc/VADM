@@ -30,7 +30,7 @@ extern std::map <uint32_t, Library *> g_libmap;
 extern "C"
 {
     void m68k_instr_callback();
-    void m68k_libcall_callback(unsigned int vector);
+    void m68k_trap_callback();
 }
 
 
