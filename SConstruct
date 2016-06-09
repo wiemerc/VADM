@@ -3,7 +3,7 @@ main = Environment()
 main.Replace(CC = 'clang', CXX = 'clang++')
 main.Append(CCFLAGS = '-Wall -g')
 main.Append(CXXFLAGS = '-Wall -g -I/usr/local/include -I/opt/m68k-amigaos/os-include')
-main.Program('vade', ['vade.cxx'] + Glob ('Musashi/*.c'), LIBS = ['log4cxx', 'PocoFoundation'], LIBPATH = '/usr/local/lib')
+main.Program('vade', Glob('*.cxx') + Glob ('Musashi/*.c'), LIBS = ['log4cxx', 'PocoFoundation'], LIBPATH = '/usr/local/lib')
 
 # test programs
 test = Environment()
