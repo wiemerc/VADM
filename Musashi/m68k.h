@@ -171,9 +171,9 @@ unsigned int  m68k_read_pcrelative_16(unsigned int address);
 unsigned int  m68k_read_pcrelative_32(unsigned int address);
 
 /* Memory access for the disassembler */
-unsigned int m68k_read_disassembler_8  (unsigned int address);
-unsigned int m68k_read_disassembler_16 (unsigned int address);
-unsigned int m68k_read_disassembler_32 (unsigned int address);
+unsigned int m68k_peek_8(unsigned int address);
+unsigned int m68k_peek_16(unsigned int address);
+unsigned int m68k_peek_32(unsigned int address);
 
 /* Write to anywhere */
 void m68k_write_memory_8(unsigned int address, unsigned int value);

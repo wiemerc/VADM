@@ -1,5 +1,7 @@
 //
-// Created by consti on 6/5/16.
+// VADE - classes for reading the executable in Amiga Hunk format
+//
+// Copyright(C) 2016 Constantin Wiemer
 //
 
 

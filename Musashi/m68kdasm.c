@@ -238,13 +238,13 @@ static char* g_cpcc[64] =
 		return;								\
 	}
 
-#define read_imm_8()  (m68k_read_disassembler_16(((g_cpu_pc+=2)-2)&g_address_mask)&0xff)
-#define read_imm_16() m68k_read_disassembler_16(((g_cpu_pc+=2)-2)&g_address_mask)
-#define read_imm_32() m68k_read_disassembler_32(((g_cpu_pc+=4)-4)&g_address_mask)
+#define read_imm_8()  (m68k_peek_16(((g_cpu_pc+=2)-2)&g_address_mask)&0xff)
+#define read_imm_16() m68k_peek_16(((g_cpu_pc+=2)-2)&g_address_mask)
+#define read_imm_32() m68k_peek_32(((g_cpu_pc+=4)-4)&g_address_mask)
 
-#define peek_imm_8()  (m68k_read_disassembler_16(g_cpu_pc & g_address_mask)&0xff)
-#define peek_imm_16() m68k_read_disassembler_16(g_cpu_pc & g_address_mask)
-#define peek_imm_32() m68k_read_disassembler_32(g_cpu_pc & g_address_mask)
+#define peek_imm_8()  (m68k_peek_16(g_cpu_pc & g_address_mask)&0xff)
+#define peek_imm_16() m68k_peek_16(g_cpu_pc & g_address_mask)
+#define peek_imm_32() m68k_peek_32(g_cpu_pc & g_address_mask)
 
 /* Fake a split interface */
 #define get_ea_mode_str_8(instruction) get_ea_mode_str(instruction, 0)
