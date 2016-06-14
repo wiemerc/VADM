@@ -24,6 +24,10 @@ extern "C"
 #define ADDR_DOS_BASE    0x00f10000
 
 
+
+std::string hexdump(const uint8_t *, size_t);
+
+
 class Library
 {
 public:
@@ -47,6 +51,9 @@ public:
 
 private:
     uint32_t OpenLibrary();
+    uint32_t AllocMem();
+    uint32_t FreeMem();
+    uint32_t FindTask();
 };
 
 
@@ -56,10 +63,19 @@ public:
     DOSLibrary()
     {
         m_funcmap[0x3b4] = (FUNCPTR) &DOSLibrary::PutStr;
+        m_funcmap[0x3ba] = (FUNCPTR) &DOSLibrary::VPrintf;
     }
 
 private:
     uint32_t PutStr();
+    uint32_t VPrintf();
+    uint32_t IoErr();
+    uint32_t Lock();
+    uint32_t UnLock();
+    uint32_t ParsePattern();
+    uint32_t MatchPattern();
+    uint32_t Examine();
+    uint32_t ExNext();
 };
 
 

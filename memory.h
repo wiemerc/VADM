@@ -9,6 +9,7 @@
 #include <string>
 #include <log4cxx/logger.h>
 #include <Poco/Format.h>
+
 #include "libs.h"
 extern "C"
 {

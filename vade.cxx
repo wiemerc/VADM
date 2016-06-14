@@ -132,6 +132,8 @@ int main(int argc, char *argv[])
     m68k_write_16(ADDR_DOS_BASE - 0x3b2, 0x4e75);
     m68k_write_16(ADDR_DOS_BASE - 0x090, 0x4e40);                                // TRAP + RTS for Exit()
     m68k_write_16(ADDR_DOS_BASE - 0x088, 0x4e75);
+    m68k_write_16(ADDR_DOS_BASE - 0x3ba, 0x4e40);                                // TRAP + RTS for VPrintf()
+    m68k_write_16(ADDR_DOS_BASE - 0x3b8, 0x4e75);
     m68k_write_32(ADDR_EXV_TRAP_0, ADDR_CODE_END - 1);                           // exception vector for traps
     m68k_write_16(ADDR_CODE_END - 1, 0x4e73);                                    // RTE instruction
 
