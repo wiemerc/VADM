@@ -89,10 +89,11 @@ int main(int argc, char *argv[])
     //
     // load executable
     //
-    if (argc != 2) {
-        LOG4CXX_ERROR(g_logger, "usage: vade <program>");
+    if (argc < 2) {
+        LOG4CXX_ERROR(g_logger, "usage: vade <program> [arguments]");
         return 1;
     }
+    LOG4CXX_INFO(g_logger, "loading executable...");
     try
     {
         AmiHunkReader reader = AmiHunkReader();
@@ -107,6 +108,7 @@ int main(int argc, char *argv[])
     //
     // initialize CPU
     //
+    LOG4CXX_INFO(g_logger, "initializing CPU...");
     m68k_init();
     m68k_set_cpu_type(M68K_CPU_TYPE_68000);
     // We need to initialize two special addresses where the CPU reads the initial values for its SSP and PC from upon reset.
@@ -119,7 +121,35 @@ int main(int argc, char *argv[])
     //
     // execute program
     //
-    // TODO: We need to pass the CLI arguments to the program
+    LOG4CXX_INFO(g_logger, "executing program...");
+
+    // pass the command line to the program
+    // On the Amiga the command line was passed as one string in A0 (the pointer) and the length in D0. To avoid that
+    // we need to construct the command line from argv here and parse it again into argv in the startup code I changed
+    // the interface a bit: A0 contains argv and D0 contains argc. We need to construct a new argument vector in the
+    // memory of the VM though. We support a maximum of 8 arguments => thus the offset of 32 between nargv and the
+    // buffer for the copied strings.
+    if (argc <= 9) {
+        uint32_t nargv = ADDR_HEAP_START;
+        uint32_t bufptr = ADDR_HEAP_START + 32;
+        uint32_t nargc = 0;
+        ++argv;
+        while (*argv != NULL) {
+            strcpy((char *) (g_mem + bufptr), *argv);
+            m68k_write_32(nargv, bufptr);
+            bufptr += strlen(*argv) + 1;
+            ++argv;
+            nargv += 4;
+            ++nargc;
+        }
+        m68k_write_32(nargv, 0);
+        m68k_set_reg(M68K_REG_A0, ADDR_HEAP_START);
+        m68k_set_reg(M68K_REG_D0, nargc);
+    }
+    else {
+        LOG4CXX_FATAL(g_logger, "more than 8 arguments were provided");
+        return 1;
+    }
 
     // open Exec library
     m68k_write_32(4, ADDR_EXEC_BASE);                                            // base of Exec library
