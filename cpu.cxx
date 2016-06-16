@@ -22,7 +22,7 @@ void m68k_instr_callback()
         nbytes -= 2;
         pc += 2;
     }
-    LOG4CXX_DEBUG(g_logger, Poco::format("next instruction at 0x%06x: %-20s: %s", ipc, dump, std::string(instr)));
+    LOG4CXX_TRACE(g_logger, Poco::format("next instruction at 0x%06x: %-20s: %s", ipc, dump, std::string(instr)));
 }
 
 

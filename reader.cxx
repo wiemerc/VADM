@@ -89,7 +89,7 @@ void AmiHunkReader::read(char *fname, uint32_t loc)
                     uint32_t  offset;
                     for (int i = 0; i < noffsets; i++) {
                         reader >> offset;
-                        LOG4CXX_DEBUG(g_logger, "applying reloc referring to hunk #" << refhnum << ", offset = " << offset);
+                        LOG4CXX_TRACE(g_logger, "applying reloc referring to hunk #" << refhnum << ", offset = " << offset);
                         m68k_write_32(hlocs[hnum] + offset, m68k_read_32(hlocs[hnum] + offset) + hlocs[refhnum]);
                     }
                 }
