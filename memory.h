@@ -25,8 +25,8 @@ extern "C"
 // TODO: Do we need to have separate areas for code and heap?
 #define ADDR_MEM_START   0x00000000
 #define ADDR_MEM_END     0x00ffffff     // 16MB memory (because the M68000 only had 24 address bits)
-#define ADDR_HEAP_START  0x00000000
-#define ADDR_HEAP_END    0x003fffff     // 4MB heap
+#define ADDR_HEAP_START  0x00000400     // lowest 1k is reserved for the CPU (exception and interrupt vectors)
+#define ADDR_HEAP_END    0x003fffff     // 4MB (minus 1k) heap
 #define ADDR_STACK_START 0x00400000
 #define ADDR_STACK_END   0x007fffff     // 4MB stack (grows from high to low addresses)
 #define ADDR_CODE_START  0x00800000
