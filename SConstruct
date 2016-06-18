@@ -8,8 +8,8 @@ main.Program('vade', Glob('*.cxx') + Glob ('Musashi/*.c'), LIBS = ['log4cxx', 'P
 # test programs
 test = Environment()
 test.Replace(CC = '/opt/m68k-amigaos/bin/m68k-amigaos-gcc')
-test.Append(CCFLAGS = '-Wall -I/usr/include')
+test.Append(CCFLAGS = '-Wall -I/usr/include -D__KLIBC__')
 test.Append(LINKFLAGS = '-s -nostdlib')
 test.Program('strtoupper', ['strtoupper.c'])
 test.Program('amihello', ['cwcrt0.c', 'amihello.c'])
-test.Program('amifind', ['cwcrt0.c', 'amifind.c'])
+test.Program('amifind', ['cwcrt0.c', 'amifind.c'] + Glob('klibc/*.c'))
