@@ -63,12 +63,10 @@ public:
     DOSLibrary()
     {
         m_funcmap[0x3b4] = (FUNCPTR) &DOSLibrary::PutStr;
-        m_funcmap[0x3ba] = (FUNCPTR) &DOSLibrary::VPrintf;
     }
 
 private:
     uint32_t PutStr();
-    uint32_t VPrintf();
     uint32_t IoErr();
     uint32_t Lock();
     uint32_t UnLock();

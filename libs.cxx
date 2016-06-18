@@ -102,53 +102,6 @@ uint32_t DOSLibrary::PutStr()
 }
 
 
-//
-// VPrintf
-// D1: string
-// D2: pointer to arguments
-// returns: number of bytes written or -1
-//
-uint32_t DOSLibrary::VPrintf()
-{
-    LOG4CXX_DEBUG(g_logger, "DOSLibrary::VPrintf() was called");
-    const char *str = (const char *) (g_mem + m68k_get_reg(NULL, M68K_REG_D1));
-    uint32_t argp = m68k_get_reg(NULL, M68K_REG_D2);
-    LOG4CXX_TRACE(g_logger, "string = '" << str << "'");
-
-    const char *p = str;
-    bool isfmt = false;
-    while (*p != 0) {
-        if (!isfmt) {
-            if (*p == '%')
-                isfmt = true;
-            else
-                std::cout << *p;
-        }
-        else {
-            switch (*p) {
-                case 'd':
-                    std::cout << Poco::format("%d", (const int32_t) m68k_read_32(argp));
-                    argp += 4;
-                    break;
-                case 's':
-                    std::cout << (const char *) (g_mem + m68k_read_32(argp));
-                    argp += 4;
-                    break;
-                case '%':
-                    std::cout << *p;
-                    break;
-                default:
-                    LOG4CXX_ERROR(g_logger, "invalid format specifier: " << *p);
-                    return -1;
-            }
-            isfmt = false;
-        }
-        ++p;
-    }
-    return 0;
-}
-
-
 uint32_t DOSLibrary::IoErr()
 {
     return 0;
