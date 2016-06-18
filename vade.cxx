@@ -126,9 +126,9 @@ int main(int argc, char *argv[])
     // pass the command line to the program
     // On the Amiga the command line was passed as one string in A0 (the pointer) and the length in D0. To avoid that
     // we need to construct the command line from argv here and parse it again into argv in the startup code I changed
-    // the interface a bit: A0 contains argv and D0 contains argc. We need to construct a new argument vector in the
-    // memory of the VM though. We support a maximum of 8 arguments => thus the offset of 32 between nargv and the
-    // buffer for the copied strings.
+    // the interface a bit: A0 contains argv and D0 contains argc. This only works with my custom startup code of course.
+    // We need to construct a new argument vector in the memory of the VM though. We support a maximum of 8 arguments
+    // => thus the offset of 32 between nargv and the buffer for the copied strings.
     if (argc <= 9) {
         uint32_t nargv = ADDR_HEAP_START;
         uint32_t bufptr = ADDR_HEAP_START + 32;
