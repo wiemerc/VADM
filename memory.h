@@ -45,6 +45,9 @@ extern "C"
 #define WRITE_WORD(BASE, ADDR, VAL) (BASE)[ADDR] = ((VAL)>>8) & 0xff; (BASE)[(ADDR)+1] = (VAL)&0xff
 #define WRITE_LONG(BASE, ADDR, VAL) (BASE)[ADDR] = ((VAL)>>24) & 0xff; (BASE)[(ADDR)+1] = ((VAL)>>16)&0xff; (BASE)[(ADDR)+2] = ((VAL)>>8)&0xff;	 (BASE)[(ADDR)+3] = (VAL)&0xff
 
+#define PTR_M68K_TO_HOST(ptr) (g_mem + (uint32_t) ptr)
+#define PTR_HOST_TO_M68K(ptr) ((uint32_t) ((uint8_t *) ptr - g_mem))
+
 
 // global logger
 extern log4cxx::LoggerPtr g_logger;
@@ -53,7 +56,7 @@ extern log4cxx::LoggerPtr g_logger;
 extern uint8_t *g_mem;
 
 // global map of opened libraries
-extern std::map <uint32_t, Library *> g_libmap;
+extern std::map <uint32_t, AmiLibrary *> g_libmap;
 
 
 extern "C"

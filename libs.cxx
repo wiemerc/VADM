@@ -8,6 +8,16 @@
 #include "libs.h"
 #include "memory.h"
 
+// Amiga OS headers
+// We need to define _SYS_TIME_H_ to avoid overriding the definition of struct timeval by <devices/timer.h>
+// (which is included by <dos/dosextens.h>)
+extern "C"
+{
+#define _SYS_TIME_H_
+#include <exec/memory.h>
+#include <dos/dosextens.h>
+}
+
 
 // global logger
 extern log4cxx::LoggerPtr g_logger;
@@ -16,13 +26,14 @@ extern log4cxx::LoggerPtr g_logger;
 extern uint8_t *g_mem;
 
 // global map of opened libraries
-extern std::map <uint32_t, Library *> g_libmap;
+extern std::map <uint32_t, AmiLibrary *> g_libmap;
 
 
 //
-// methods of Library
+// methods of AmiLibrary
 //
-void Library::call(const uint16_t offset)
+// TODO: Libraries should have a list of offsets to fill the map and setup the jump table
+void AmiLibrary::call(const uint16_t offset)
 {
     uint32_t rc;
     if (m_funcmap.find(offset) != m_funcmap.end()) {
@@ -40,6 +51,18 @@ void Library::call(const uint16_t offset)
 // methods of ExecLibrary
 //
 
+ExecLibrary::ExecLibrary()
+{
+    // add functions to map
+    m_funcmap[0x228] = (FUNCPTR) &ExecLibrary::OpenLibrary;
+    m_funcmap[0x2ac] = (FUNCPTR) &ExecLibrary::AllocVec;
+    m_funcmap[0x2b2] = (FUNCPTR) &ExecLibrary::FreeVec;
+
+    // initialize memory pool
+    m_last_mem_addr = PTR_M68K_TO_HOST(ADDR_HEAP_START);
+}
+
+
 //
 // OpenLibrary
 // A1: library name
@@ -49,7 +72,7 @@ void Library::call(const uint16_t offset)
 uint32_t ExecLibrary::OpenLibrary()
 {
     LOG4CXX_DEBUG(g_logger, "ExecLibrary::OpenLibrary() was called");
-    const char *libname = (const char *) g_mem + m68k_get_reg(NULL, M68K_REG_A1);
+    const char *libname = (const char *) PTR_M68K_TO_HOST(m68k_get_reg(NULL, M68K_REG_A1));
     const uint32_t version = m68k_get_reg(NULL, M68K_REG_D0);
     LOG4CXX_DEBUG(g_logger, "library name = " << libname << ", version = " << version);
 
@@ -66,14 +89,34 @@ uint32_t ExecLibrary::OpenLibrary()
 }
 
 
-uint32_t ExecLibrary::AllocMem()
+uint32_t ExecLibrary::AllocVec()
 {
-    return 0;
+    LOG4CXX_DEBUG(g_logger, "ExecLibrary::AllocVec() was called");
+    const uint32_t size = m68k_get_reg(NULL, M68K_REG_D0);
+    const uint32_t flags = m68k_get_reg(NULL, M68K_REG_D1);
+    LOG4CXX_DEBUG(g_logger, "size = " << size << ", flags = " << Poco::format("0x%08x", flags));
+
+    try {
+        uint8_t * ptr = AllocVecInt(size);
+        // We ignore all flags except MEMF_CLEAR
+        if (flags & MEMF_CLEAR)
+            memset(ptr, 0, size);
+        return PTR_HOST_TO_M68K(ptr);
+    }
+    catch (std::exception &e) {
+        return 0;
+    }
+
 }
 
 
-uint32_t ExecLibrary::FreeMem()
+uint32_t ExecLibrary::FreeVec()
 {
+    LOG4CXX_DEBUG(g_logger, "ExecLibrary::FreeVec() was called");
+    const uint32_t ptr = m68k_get_reg(NULL, M68K_REG_A1);
+    LOG4CXX_DEBUG(g_logger, Poco::format("ptr = 0x%08x", ptr));
+
+    FreeVecInt(PTR_M68K_TO_HOST(ptr));
     return 0;
 }
 
@@ -81,6 +124,49 @@ uint32_t ExecLibrary::FreeMem()
 uint32_t ExecLibrary::FindTask()
 {
     return 0;
+}
+
+
+uint8_t *ExecLibrary::AllocVecInt(const uint32_t size)
+{
+    // This very simple algorithm for memory allocation is based on this article: http://www.ibm.com/developerworks/library/l-memory/
+    // It is not suitable for a real application (because of fragmentation and probably also performance).
+    uint8_t *ptr = PTR_M68K_TO_HOST(ADDR_HEAP_START);
+    MEMORY_CONTROLL_BLOCK *mcb;
+
+    // walk through list of previously allocated blocks and see if there is a free one that fits
+    while (ptr != m_last_mem_addr) {
+        mcb = (MEMORY_CONTROLL_BLOCK *) ptr;
+        if (mcb->mcb_is_free && (mcb->mcb_size >= size)) {
+            mcb->mcb_is_free = false;
+//            LOG4CXX_DEBUG(g_logger, Poco::format("reusing block of %d bytes at address 0x%08x from pool", mcb->mcb_size, PTR_HOST_TO_M68K(ptr)));
+            LOG4CXX_DEBUG(g_logger, "reusing block of " << mcb->mcb_size << " bytes at address " << PTR_HOST_TO_M68K(ptr) << " from pool");
+            return ptr + sizeof(MEMORY_CONTROLL_BLOCK);
+        }
+        ptr += sizeof(MEMORY_CONTROLL_BLOCK) + mcb->mcb_size;
+    }
+
+    // no suitable block found => allocate a new one
+    if ((ADDR_HEAP_END - PTR_HOST_TO_M68K(m_last_mem_addr)) >= (sizeof(MEMORY_CONTROLL_BLOCK) + size)) {
+        mcb = (MEMORY_CONTROLL_BLOCK *) ptr;        // already points to m_last_mem_addr
+        mcb->mcb_is_free = false;
+        mcb->mcb_size    = size;
+        m_last_mem_addr += sizeof(MEMORY_CONTROLL_BLOCK) + size;
+//        LOG4CXX_DEBUG(g_logger, Poco::format("allocating block of %d bytes at address 0x%08x from pool", mcb->mcb_size, PTR_HOST_TO_M68K(ptr)));
+        LOG4CXX_DEBUG(g_logger, "allocating block of " << mcb->mcb_size << " bytes at address " << PTR_HOST_TO_M68K(ptr) << " from pool");
+        return ptr + sizeof(MEMORY_CONTROLL_BLOCK);
+    }
+    else {
+        LOG4CXX_FATAL(g_logger, "out of memory - could not allocate block of " << size << " bytes");
+        throw std::runtime_error("out of memory");
+    }
+}
+
+
+void ExecLibrary::FreeVecInt(uint8_t *block)
+{
+    MEMORY_CONTROLL_BLOCK *mcb = (MEMORY_CONTROLL_BLOCK *) (block - sizeof(MEMORY_CONTROLL_BLOCK));
+    mcb->mcb_is_free = true;
 }
 
 
@@ -96,7 +182,7 @@ uint32_t ExecLibrary::FindTask()
 uint32_t DOSLibrary::PutStr()
 {
     LOG4CXX_DEBUG(g_logger, "DOSLibrary::PutStr() was called");
-    const char *str = (const char *) g_mem + m68k_get_reg(NULL, M68K_REG_D1);
+    const char *str = (const char *) PTR_M68K_TO_HOST(m68k_get_reg(NULL, M68K_REG_D1));
     std::cout << str;
     return 0;
 }
@@ -110,12 +196,21 @@ uint32_t DOSLibrary::IoErr()
 
 uint32_t DOSLibrary::Lock()
 {
-    return 0;
+    LOG4CXX_DEBUG(g_logger, "DOSLibrary::Lock() was called");
+    const char *path = (const char *) PTR_M68K_TO_HOST(m68k_get_reg(NULL, M68K_REG_D1));
+    const uint32_t mode = m68k_get_reg(NULL, M68K_REG_D2);
+    LOG4CXX_DEBUG(g_logger, "path = " << path << ", mode = " << mode);
+
+    struct FileLock *lock = ((struct FileLock *) ((ExecLibrary *) g_libmap[ADDR_EXEC_BASE])->AllocVecInt( sizeof(struct FileLock)));
+    lock->fl_Key = 4711;
+
+    return PTR_HOST_TO_M68K(lock);
 }
 
 
 uint32_t DOSLibrary::UnLock()
 {
+    LOG4CXX_DEBUG(g_logger, "DOSLibrary::UnLock() was called");
     return 0;
 }
 

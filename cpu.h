@@ -24,7 +24,7 @@ extern "C"
 extern log4cxx::LoggerPtr g_logger;
 
 // global map of opened libraries
-extern std::map <uint32_t, Library *> g_libmap;
+extern std::map <uint32_t, AmiLibrary *> g_libmap;
 
 
 extern "C"
