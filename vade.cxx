@@ -11,7 +11,6 @@
 
 // standard headers
 #include <stdint.h>                     // can't use cstdint because it requires C++11 support
-#include <iostream>
 #include <vector>
 
 // Apache log4cxx
@@ -34,6 +33,9 @@ log4cxx::LoggerPtr g_logger;
 
 // global pointer to memory
 uint8_t *g_mem;
+
+// global pointer to MemoryManager object
+MemoryManager *g_memmgr;
 
 // global map of opened libraries
 std::map <uint32_t, AmiLibrary *> g_libmap;
@@ -78,13 +80,15 @@ std::string hexdump (const uint8_t *buffer, size_t length)
 int main(int argc, char *argv[])
 {
     // setup logging
-    g_logger = log4cxx::Logger::getLogger("tftpd");
+    g_logger = log4cxx::Logger::getLogger("vade");
     log4cxx::PropertyConfigurator::configure("logging.properties");
 
     // allocate memory for our VM and fill code area with STOP instructions
+    // TODO: Move this to the MemoryManager class
     g_mem = new uint8_t[ADDR_MEM_END - ADDR_MEM_START + 1];
     for (uint16_t *p = (uint16_t *) (g_mem + ADDR_CODE_START + 10); p < (uint16_t *) (g_mem + ADDR_CODE_END); ++p)
         *p = 0x724e;
+    g_memmgr = new MemoryManager();
 
     //
     // load executable

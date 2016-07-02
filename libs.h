@@ -12,6 +12,8 @@
 #include <Poco/Path.h>
 #include <Poco/File.h>
 
+#include "memory.h"
+
 extern "C"
 {
 #include "Musashi/m68k.h"
@@ -24,8 +26,22 @@ extern "C"
 
 #define ADDR_EXEC_BASE   0x00f00000
 #define ADDR_DOS_BASE    0x00f10000
-#define ADDR_HEAP_START  0x00000400     // lowest 1k is reserved for the CPU (exception and interrupt vectors)
 
+#define SWAP_BYTES(x) (((x) & 0x000000ff) << 24) | (((x) & 0x0000ff00) << 8) | (((x) & 0x00ff0000) >> 8) | (((x) & 0xff000000) >> 24)
+
+
+// global logger
+extern log4cxx::LoggerPtr g_logger;
+
+// global pointer to memory
+extern uint8_t *g_mem;
+
+// global pointer to MemoryManager object
+extern MemoryManager *g_memmgr;
+
+// global map of opened libraries
+class AmiLibrary;
+extern std::map <uint32_t, AmiLibrary *> g_libmap;
 
 
 std::string hexdump(const uint8_t *, size_t);
@@ -48,17 +64,8 @@ class ExecLibrary : public AmiLibrary
 {
 public:
     ExecLibrary();
-    uint8_t * AllocVecInt(const uint32_t size);
-    void FreeVecInt(uint8_t *block);
 
 private:
-    typedef struct
-    {
-        bool     mcb_is_free;
-        uint32_t mcb_size;
-    } MEMORY_CONTROLL_BLOCK;
-
-    uint8_t *m_last_mem_addr;
 
     uint32_t OpenLibrary();
     uint32_t AllocVec();

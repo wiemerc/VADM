@@ -10,7 +10,6 @@
 #include <log4cxx/logger.h>
 #include <Poco/Format.h>
 
-#include "libs.h"
 extern "C"
 {
 #include "Musashi/m68k.h"
@@ -47,6 +46,8 @@ extern "C"
 
 #define PTR_M68K_TO_HOST(ptr) (g_mem + (uint32_t) ptr)
 #define PTR_HOST_TO_M68K(ptr) ((uint32_t) ((uint8_t *) ptr - g_mem))
+#define PTR_C_TO_BCPL(ptr) (((uint32_t) (ptr)) >> 2)
+#define PTR_BCPL_TO_C(ptr) (((uint32_t) (ptr)) << 2)
 
 
 // global logger
@@ -55,8 +56,22 @@ extern log4cxx::LoggerPtr g_logger;
 // global pointer to memory
 extern uint8_t *g_mem;
 
-// global map of opened libraries
-extern std::map <uint32_t, AmiLibrary *> g_libmap;
+
+class MemoryManager
+{
+public:
+    MemoryManager();
+    uint8_t * alloc(const uint32_t size);
+    void free(uint8_t *block);
+
+private:
+    typedef struct
+    {
+        bool     mcb_isFree;
+        uint32_t mcb_size;
+    } MEMORY_CONTROLL_BLOCK;
+    uint8_t *m_lastMemAddr;
+};
 
 
 extern "C"
