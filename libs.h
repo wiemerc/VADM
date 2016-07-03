@@ -9,7 +9,6 @@
 #include <stdint.h>
 #include <log4cxx/logger.h>
 #include <Poco/Format.h>
-#include <Poco/Path.h>
 #include <Poco/File.h>
 
 #include "memory.h"

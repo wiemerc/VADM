@@ -138,23 +138,48 @@ uint32_t DOSLibrary::IoErr()
 }
 
 
+//
+// Lock
+// D1: path to file or directory
+// D2: access mode (not used)
+// returns: BPTR to struct FileLock or 0 in case of an error
+//
 uint32_t DOSLibrary::Lock()
 {
-    LOG4CXX_DEBUG(g_logger, "DOSLibrary::Lock() was called");
+    LOG4CXX_DEBUG(g_logger, "DOSLibrary::Lock() has been called");
     const char *path = (const char *) PTR_M68K_TO_HOST(m68k_get_reg(NULL, M68K_REG_D1));
-    const uint32_t mode = m68k_get_reg(NULL, M68K_REG_D2);
+    const uint32_t mode = SWAP_BYTES(m68k_get_reg(NULL, M68K_REG_D2));
     LOG4CXX_DEBUG(g_logger, "path = " << path << ", mode = " << mode);
 
-    struct FileLock *lock = ((struct FileLock *) ((ExecLibrary *) g_libmap[ADDR_EXEC_BASE])->AllocVecInt( sizeof(struct FileLock)));
-    lock->fl_Key = 4711;
+    // As Lock() was typically used to Examine() a file or directory, and this does not require a lock on neither
+    // Unix nor Windows, we don't really lock anything here but only create a Poco::File object (which can be used
+    // in Examine() to create a Poco::DirectoryIterator) and store the pointer in the fl_Key field of the FileLock
+    // structure to associate the lock with the file or directory.
+    Poco::File *obj = new Poco::File(path);
+    if (obj->exists()) {
+        LOG4CXX_DEBUG(g_logger, "creating lock for file / dir '" << path << "'");
+        struct FileLock *lock = ((struct FileLock *) g_memmgr->alloc(sizeof(struct FileLock)));
+        lock->fl_Key    = (uint32_t) obj;
+        lock->fl_Access = mode;
+        return PTR_C_TO_BCPL(PTR_HOST_TO_M68K(lock));
 
-    return PTR_HOST_TO_M68K(lock);
+    }
+    else {
+        LOG4CXX_ERROR(g_logger, "could not create lock for file / dir '" << path << "' because it does not exist");
+        return 0;
+    }
 }
 
 
 uint32_t DOSLibrary::UnLock()
 {
-    LOG4CXX_DEBUG(g_logger, "DOSLibrary::UnLock() was called");
+    LOG4CXX_DEBUG(g_logger, "DOSLibrary::UnLock() has been called");
+    const struct FileLock *lock = (struct FileLock *) PTR_M68K_TO_HOST(PTR_BCPL_TO_C(m68k_get_reg(NULL, M68K_REG_D1)));
+
+    Poco::File *obj = (Poco::File *) lock->fl_Key;
+    LOG4CXX_DEBUG(g_logger, "unlocking file / dir '" << obj->path() << "'");
+    delete obj;
+    g_memmgr->free((uint8_t *) lock);
     return 0;
 }
 
