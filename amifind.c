@@ -26,20 +26,19 @@ void search(const char *path)
     struct FileInfoBlock *fib;
 
     if ((lock = Lock (path, ACCESS_READ)) != 0) {
-        printf("directory key = %ld\n", ((struct FileLock *) BADDR(lock))->fl_Key);
-
         if ((fib = AllocVec(sizeof(struct FileInfoBlock), MEMF_CLEAR)) != NULL) {
             if (Examine(lock, fib)) {
                 if (fib->fib_DirEntryType > 0) {
-                    printf("examing directory '%s'", path);
+                    printf("examing directory '%s'\n", path);
                     while (ExNext(lock, fib)) {
                         if(fib->fib_DirEntryType > 0) {
                             // another directory => call ourself recursively
+                            // TODO: add initial path
                             search(fib->fib_FileName);
                         }
                         else {
                             // plain file => just output file name and size for now
-                            printf("%-40s%ld\n", fib->fib_FileName, fib->fib_Size);
+                            printf("%-30s%-ld\n", fib->fib_FileName, fib->fib_Size);
                         }
                     }
                     if (IoErr() != ERROR_NO_MORE_ENTRIES)
