@@ -175,6 +175,12 @@ int main(int argc, char *argv[])
     m68k_write_16(ADDR_DOS_BASE - 0x052, 0x4e75);
     m68k_write_16(ADDR_DOS_BASE - 0x05a, 0x4e40);                                // TRAP + RTS for UnLock()
     m68k_write_16(ADDR_DOS_BASE - 0x058, 0x4e75);
+    m68k_write_16(ADDR_DOS_BASE - 0x066, 0x4e40);                                // TRAP + RTS for Examine()
+    m68k_write_16(ADDR_DOS_BASE - 0x064, 0x4e75);
+    m68k_write_16(ADDR_DOS_BASE - 0x06c, 0x4e40);                                // TRAP + RTS for ExNext()
+    m68k_write_16(ADDR_DOS_BASE - 0x06a, 0x4e75);
+    m68k_write_16(ADDR_DOS_BASE - 0x084, 0x4e40);                                // TRAP + RTS for IoErr()
+    m68k_write_16(ADDR_DOS_BASE - 0x082, 0x4e75);
     m68k_write_32(ADDR_EXV_TRAP_0, ADDR_CODE_END - 1);                           // exception vector for traps
     m68k_write_16(ADDR_CODE_END - 1, 0x4e73);                                    // RTE instruction
 

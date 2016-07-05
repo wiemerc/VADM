@@ -9,7 +9,9 @@
 #include <stdint.h>
 #include <log4cxx/logger.h>
 #include <Poco/Format.h>
+#include <Poco/Path.h>
 #include <Poco/File.h>
+#include <Poco/DirectoryIterator.h>
 
 #include "memory.h"
 
@@ -69,7 +71,6 @@ private:
     uint32_t OpenLibrary();
     uint32_t AllocVec();
     uint32_t FreeVec();
-    uint32_t FindTask();
 };
 
 
@@ -81,9 +82,14 @@ public:
         m_funcmap[0x3b4] = (FUNCPTR) &DOSLibrary::PutStr;
         m_funcmap[0x054] = (FUNCPTR) &DOSLibrary::Lock;
         m_funcmap[0x05a] = (FUNCPTR) &DOSLibrary::UnLock;
+        m_funcmap[0x066] = (FUNCPTR) &DOSLibrary::Examine;
+        m_funcmap[0x06c] = (FUNCPTR) &DOSLibrary::ExNext;
+        m_funcmap[0x084] = (FUNCPTR) &DOSLibrary::IoErr;
     }
 
 private:
+    uint32_t m_errno;
+
     uint32_t PutStr();
     uint32_t IoErr();
     uint32_t Lock();
