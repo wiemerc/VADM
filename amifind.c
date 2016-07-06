@@ -25,7 +25,68 @@ int printf(const char *str, ...)
 }
 
 
-void search(const char *dir)
+//
+// fnmatch - matches a file name against a pattern (a '?' matches a single character, a '*' matches an arbitrary string)
+//
+// returns: 1 if the string matches the pattern, 0 otherwise
+//
+int fnmatch(const char *pattern, const char *fname)
+{
+    const char *p = pattern;
+    const char *s = fname;
+    int			matched = 0;
+    int         done    = 0;
+
+    while ((*p != 0) && (*s != 0) && !done)
+    {
+        switch (*p)
+        {
+            case '?':
+                 // matches a single character => we just move on to the next character
+                ++p;
+                ++s;
+                break;
+
+            case '*':
+                 // matches an arbitrary but not empty string (at least one character)
+                 // We move on to the next character in the pattern and then call fnmatch() recursively starting with
+                 // the next character in the string and go through the string until we get a match or reach
+                 // the end of the string.
+                ++p;
+                do
+                {
+                    ++s;
+                    if (fnmatch(p, s))
+                    {
+                        matched = 1;
+                        break;
+                    }
+                }
+                while (*s != '\0');
+                done = 1;
+                break;
+
+            default:
+                 // plain character (includes NUL byte)
+                 // If the characters match we just move on to the next character, otherwise we're done
+                if (*p == *s)
+                {
+                    ++p;
+                    ++s;
+                }
+                else
+                    done = 1;
+                break;
+        }
+    }
+    if (!done && (*p == 0) && (*s == 0))
+        matched = 1;
+    
+    return matched;
+}
+
+
+void search(const char *dir, const char *pattern)
 {
     BPTR                   lock;
     struct FileInfoBlock *fib;
@@ -43,12 +104,14 @@ void search(const char *dir)
                             if(fib->fib_DirEntryType > 0) {
                                 // another directory => call ourselves recursively
                                 strncpy(newdir, dir, MAX_PATH_LEN - 1);
-                                strncat(newdir, fib->fib_FileName, MAX_PATH_LEN - 1 - strlen(dir));
-                                search(newdir);
+                                strncat(newdir, "/", MAX_PATH_LEN - 1 - strlen(dir));
+                                strncat(newdir, fib->fib_FileName, MAX_PATH_LEN - 2 - strlen(dir));
+                                search(newdir, pattern);
                             }
                             else {
-                                // plain file => just output file name and size for now
-                                printf("%-30s%-ld\n", fib->fib_FileName, fib->fib_Size);
+                                // plain file => just output file name and size if the name matches the pattern
+                                if (fnmatch(pattern, fib->fib_FileName))
+                                    printf("%s/%-30s%ld\n", dir, fib->fib_FileName, fib->fib_Size);
                             }
                         }
                         if (IoErr() != ERROR_NO_MORE_ENTRIES)
@@ -114,7 +177,7 @@ int cwmain(int argc, char **argv)
     printf("flags = '%s'\n", flags);
     printf("mtime = '%s'\n", mtime);
 
-    search(dir);
+    search(dir, pattern);
 
     return 0;
 }
