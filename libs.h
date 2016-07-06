@@ -94,8 +94,6 @@ private:
     uint32_t IoErr();
     uint32_t Lock();
     uint32_t UnLock();
-    uint32_t ParsePattern();
-    uint32_t MatchPattern();
     uint32_t Examine();
     uint32_t ExNext();
 };

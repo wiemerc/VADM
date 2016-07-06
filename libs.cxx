@@ -254,15 +254,3 @@ uint32_t DOSLibrary::IoErr()
     return m_errno;
 }
 
-
-uint32_t DOSLibrary::ParsePattern()
-{
-    return 0;
-}
-
-
-uint32_t DOSLibrary::MatchPattern()
-{
-    return 0;
-}
-
