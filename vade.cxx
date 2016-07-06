@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
     LOG4CXX_INFO(g_logger, "loading executable...");
     try
     {
-        AmiHunkReader reader = AmiHunkReader();
+        AmiHunkReader reader;
         reader.read(argv[1], ADDR_CODE_START);
     }
     catch (std::exception &e)
@@ -132,14 +132,16 @@ int main(int argc, char *argv[])
     // we need to construct the command line from argv here and parse it again into argv in the startup code I changed
     // the interface a bit: A0 contains argv and D0 contains argc. This only works with my custom startup code of course.
     // We need to construct a new argument vector in the memory of the VM though. We support a maximum of 8 arguments
-    // => thus the offset of 32 between nargv and the buffer for the copied strings.
+    // and 1024 characters in total => thus the offset of 32 between nargv and the buffer for the copied strings.
+    // Memory needed: 1024 characters + 9 * 4 bytes for the pointers (8 arguments + terminating NULL pointer) + 8 NUL bytes
     if (argc <= 9) {
-        uint32_t nargv = ADDR_HEAP_START;
-        uint32_t bufptr = ADDR_HEAP_START + 32;
+        uint32_t nargv = PTR_HOST_TO_M68K(g_memmgr->alloc(1068));
+        uint32_t bufptr = nargv + 32;
         uint32_t nargc = 0;
         ++argv;
         while (*argv != NULL) {
-            strcpy((char *) (g_mem + bufptr), *argv);
+            // TODO: We should use strncpy and keep track of the already used memory
+            strcpy((char *) (PTR_M68K_TO_HOST(bufptr)), *argv);
             m68k_write_32(nargv, bufptr);
             bufptr += strlen(*argv) + 1;
             ++argv;
@@ -147,7 +149,7 @@ int main(int argc, char *argv[])
             ++nargc;
         }
         m68k_write_32(nargv, 0);
-        m68k_set_reg(M68K_REG_A0, ADDR_HEAP_START);
+        m68k_set_reg(M68K_REG_A0, nargv - nargc * 4);
         m68k_set_reg(M68K_REG_D0, nargc);
     }
     else {
