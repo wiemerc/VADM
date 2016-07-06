@@ -1,5 +1,5 @@
 //
-// VADE - functions / classes related to the CPU
+// VADE - functions related to the CPU
 //
 // Copyright(C) 2016 Constantin Wiemer
 //
@@ -10,10 +10,6 @@
 #include <log4cxx/logger.h>
 #include <Poco/Format.h>
 #include "libs.h"
-extern "C"
-{
-#include "Musashi/m68k.h"
-}
 
 
 #ifndef VADE_CPU_H
@@ -32,14 +28,6 @@ extern "C"
     void m68k_instr_callback();
     void m68k_trap_callback();
 }
-
-
-class CPU
-{
-public:
-
-private:
-};
 
 
 #endif //VADE_CPU_H
