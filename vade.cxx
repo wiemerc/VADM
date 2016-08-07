@@ -25,7 +25,7 @@
 // project headers
 #include "cpu.h"
 #include "memory.h"
-#include "reader.h"
+#include "loader.h"
 
 
 // global logger
@@ -100,8 +100,8 @@ int main(int argc, char *argv[])
     LOG4CXX_INFO(g_logger, "loading executable...");
     try
     {
-        AmiHunkReader reader;
-        reader.read(argv[1], ADDR_CODE_START);
+        AmiHunkLoader loader;
+        loader.load(argv[1], ADDR_CODE_START);
     }
     catch (std::exception &e)
     {

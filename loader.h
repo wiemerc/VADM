@@ -1,5 +1,5 @@
 //
-// VADE - classes for reading the executable in Amiga Hunk format
+// VADE - classes for loading the executable in Amiga Hunk format
 //
 // Copyright(C) 2016 Constantin Wiemer
 //
@@ -29,14 +29,7 @@ void m68k_write_32(unsigned int address, unsigned int value);
 }
 
 
-class Reader
-{
-public:
-    virtual void read(char *fname, uint32_t loc) = 0;
-};
-
-
-class AmiHunkReader : public Reader
+class AmiHunkLoader
 {
 public:
     void read(char *fname, uint32_t loc);

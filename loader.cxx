@@ -1,11 +1,11 @@
 //
-// VADE - classes for reading the executable in Amiga Hunk format
+// VADE - classes for loading the executable in Amiga Hunk format
 //
 // Copyright(C) 2016 Constantin Wiemer
 //
 
 
-#include "reader.h"
+#include "loader.h"
 
 
 // global logger
@@ -15,7 +15,7 @@ extern log4cxx::LoggerPtr g_logger;
 extern uint8_t *g_mem;
 
 
-void AmiHunkReader::read(char *fname, uint32_t loc)
+void AmiHunkLoader::read(char *fname, uint32_t loc)
 {
     Poco::FileInputStream exe(fname);
     Poco::BinaryReader::BinaryReader reader(exe, Poco::BinaryReader::BIG_ENDIAN_BYTE_ORDER);
@@ -93,11 +93,11 @@ void AmiHunkReader::read(char *fname, uint32_t loc)
                         m68k_write_32(hlocs[hnum] + offset, m68k_read_32(hlocs[hnum] + offset) + hlocs[refhnum]);
                     }
                 }
-                LOG4CXX_TRACE(g_logger, "hex dump of block after applying relocs:\n" << hexdump(g_mem + hlocs[hnum], nwords * 4));
                 break;
 
             case HUNK_SYMBOL:
-                LOG4CXX_INFO(g_logger, "hunk #" << hnum << ", block type = HUNK_END");
+                // TODO: Implement HUNK_SYMBOL
+                LOG4CXX_INFO(g_logger, "hunk #" << hnum << ", block type = HUNK_SYMBOL");
                 LOG4CXX_ERROR(g_logger, "block type is not implemented");
                 throw std::runtime_error ("block type not implemented");
                 break;
@@ -108,6 +108,7 @@ void AmiHunkReader::read(char *fname, uint32_t loc)
                 break;
 
             default:
+                // TODO: Fix errors
                 LOG4CXX_ERROR(g_logger, "unknown block type: " << btype);
         }
     }
