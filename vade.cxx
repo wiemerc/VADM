@@ -1,9 +1,9 @@
 //
-// VADE - Virtual Amiga DOS Environment
+// VADM - Virtual Amiga DOS Machine
 //
-// This is just a proof-of-concept of an ABI emulator, so only a very small part of the actual Amiga DOS is emulated.
-// It was inspired by Wine, the virtual DOS machine (VDM) in Windows NT and Wabi for Solaris. For the emulation
-// of the CPU (Motorola M680x0) the code of the Musashi emulator is used.
+// VADM executes (simple) programs written and compiled for Amiga DOS / Amiga OS. This is just a proof-of-concept of an ABI emulator,
+// so only a very small part of the actual Amiga DOS / Amiga OS is emulated. It was inspired by Wine, the virtual DOS machine (VDM)
+// in Windows NT and Wabi for Solaris. For the emulation of the CPU (Motorola M680x0) the code of the Musashi emulator is used.
 //
 // Copyright(C) 2016 Constantin Wiemer
 //
