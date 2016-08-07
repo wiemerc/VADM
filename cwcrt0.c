@@ -7,7 +7,7 @@
 
 
 static char libname[] = "dos.library";
-struct ExecBase **AbsExecBase = (struct ExecBase **) 4;
+static struct ExecBase **AbsExecBase = (struct ExecBase **) 4;
 struct ExecBase *SysBase;
 struct DosLibrary *DOSBase;
 
