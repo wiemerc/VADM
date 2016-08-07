@@ -1,5 +1,5 @@
 //
-// VADE - classes for loading the executable in Amiga Hunk format
+// VADM - class for loading the executable in Amiga Hunk format
 //
 // Copyright(C) 2016 Constantin Wiemer
 //
@@ -17,8 +17,8 @@ extern "C"
 }
 
 
-#ifndef VADE_READER_H
-#define VADE_READER_H
+#ifndef VADM_LOADER_H
+#define VADM_LOADER_H
 
 
 std::string hexdump(const uint8_t *, size_t);
@@ -32,8 +32,8 @@ void m68k_write_32(unsigned int address, unsigned int value);
 class AmiHunkLoader
 {
 public:
-    void read(char *fname, uint32_t loc);
+    void load(char *fname, uint32_t loc);
 };
 
 
-#endif //VADE_READER_H
+#endif //VADM_LOADER_H
