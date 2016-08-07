@@ -1,9 +1,10 @@
 # main program
-main = Environment()
+main = Environment(TARGET_ARCH = 'i386')
 main.Replace(CC = 'clang', CXX = 'clang++')
-main.Append(CCFLAGS = '-Wall -g')
-main.Append(CXXFLAGS = '-Wall -g -I/usr/local/include -I/opt/m68k-amigaos/os-include')
-main.Program('vade', Glob('*.cxx') + Glob ('Musashi/*.c'), LIBS = ['log4cxx', 'PocoFoundation'], LIBPATH = '/usr/local/lib')
+main.Append(CCFLAGS = '-m32 -Wall -g')
+main.Append(CXXFLAGS = '-m32 -Wall -g -I/opt/local/include -I/usr/local/include -I/opt/m68k-amigaos/os-include')
+main.Append(LINKFLAGS = '-arch i386')
+main.Program('vadm', Glob('*.cxx') + Glob ('Musashi/*.c'), LIBS = ['log4cxx', 'PocoFoundation'], LIBPATH = ['/opt/local/lib', '/usr/local/lib'])
 
 # test programs
 test = Environment()
