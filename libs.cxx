@@ -74,9 +74,8 @@ uint32_t ExecLibrary::OpenLibrary()
         return ADDR_DOS_BASE;
     }
     else {
-        // TODO: Should we throw an exception in case of errors?
-        LOG4CXX_ERROR(g_logger, "unknown library: " << libname);
-        return 0;
+        LOG4CXX_ERROR(g_logger, "library not implemented: " << libname);
+        throw std::runtime_error("library not implemented");
     }
 }
 
