@@ -22,7 +22,6 @@ extern "C"
 //
 // methods of AmiLibrary
 //
-// TODO: Libraries should have a list of offsets to fill the map and setup the jump table
 void AmiLibrary::call(const uint16_t offset)
 {
     uint32_t rc;
@@ -41,12 +40,18 @@ void AmiLibrary::call(const uint16_t offset)
 // methods of ExecLibrary
 //
 
-ExecLibrary::ExecLibrary()
+ExecLibrary::ExecLibrary(uint32_t base)
 {
     // add functions to map
     m_funcmap[0x228] = (FUNCPTR) &ExecLibrary::OpenLibrary;
     m_funcmap[0x2ac] = (FUNCPTR) &ExecLibrary::AllocVec;
     m_funcmap[0x2b2] = (FUNCPTR) &ExecLibrary::FreeVec;
+
+    // setup jump table (TRAP and RTS instructions for each routine)
+    for (auto it = m_funcmap.begin(); it != m_funcmap.end(); ++it) {
+        m68k_write_16(base - it->first, 0x4e40);
+        m68k_write_16(base - it->first + 2, 0x4e75);
+    }
 }
 
 
@@ -65,7 +70,7 @@ uint32_t ExecLibrary::OpenLibrary()
 
     if (strcmp(libname, "dos.library") == 0) {
         LOG4CXX_DEBUG(g_logger, "opening dos.library");
-        g_libmap[ADDR_DOS_BASE] = new DOSLibrary();
+        g_libmap[ADDR_DOS_BASE] = new DOSLibrary(ADDR_DOS_BASE);
         return ADDR_DOS_BASE;
     }
     else {
@@ -111,6 +116,22 @@ uint32_t ExecLibrary::FreeVec()
 //
 // methods of DOSLibrary
 //
+
+DOSLibrary::DOSLibrary(uint32_t base) {
+    m_funcmap[0x3b4] = (FUNCPTR) & DOSLibrary::PutStr;
+    m_funcmap[0x054] = (FUNCPTR) & DOSLibrary::Lock;
+    m_funcmap[0x05a] = (FUNCPTR) & DOSLibrary::UnLock;
+    m_funcmap[0x066] = (FUNCPTR) & DOSLibrary::Examine;
+    m_funcmap[0x06c] = (FUNCPTR) & DOSLibrary::ExNext;
+    m_funcmap[0x084] = (FUNCPTR) & DOSLibrary::IoErr;
+
+    // setup jump table (TRAP and RTS instructions for each routine)
+    for (auto it = m_funcmap.begin(); it != m_funcmap.end(); ++it) {
+        m68k_write_16(base - it->first, 0x4e40);
+        m68k_write_16(base - it->first + 2, 0x4e75);
+    }
+}
+
 
 //
 // PutStr

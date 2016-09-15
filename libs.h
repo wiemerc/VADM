@@ -64,7 +64,7 @@ protected:
 class ExecLibrary : public AmiLibrary
 {
 public:
-    ExecLibrary();
+    ExecLibrary(uint32_t base);
 
 private:
 
@@ -77,15 +77,7 @@ private:
 class DOSLibrary : public AmiLibrary
 {
 public:
-    DOSLibrary()
-    {
-        m_funcmap[0x3b4] = (FUNCPTR) &DOSLibrary::PutStr;
-        m_funcmap[0x054] = (FUNCPTR) &DOSLibrary::Lock;
-        m_funcmap[0x05a] = (FUNCPTR) &DOSLibrary::UnLock;
-        m_funcmap[0x066] = (FUNCPTR) &DOSLibrary::Examine;
-        m_funcmap[0x06c] = (FUNCPTR) &DOSLibrary::ExNext;
-        m_funcmap[0x084] = (FUNCPTR) &DOSLibrary::IoErr;
-    }
+    DOSLibrary(uint32_t base);
 
 private:
     uint32_t m_errno;

@@ -159,30 +159,8 @@ int main(int argc, char *argv[])
 
     // open Exec library
     m68k_write_32(4, ADDR_EXEC_BASE);                                            // base of Exec library
-    g_libmap[ADDR_EXEC_BASE] = new ExecLibrary();
+    g_libmap[ADDR_EXEC_BASE] = new ExecLibrary(ADDR_EXEC_BASE);
 
-    // setup jump table for library routines
-    // TODO: Move this to the library classes
-    m68k_write_16(ADDR_EXEC_BASE - 0x228, 0x4e40);                               // TRAP + RTS for OpenLibrary()
-    m68k_write_16(ADDR_EXEC_BASE - 0x226, 0x4e75);
-    m68k_write_16(ADDR_EXEC_BASE - 0x2ac, 0x4e40);                               // TRAP + RTS for AllocVec()
-    m68k_write_16(ADDR_EXEC_BASE - 0x2aa, 0x4e75);
-    m68k_write_16(ADDR_EXEC_BASE - 0x2b2, 0x4e40);                               // TRAP + RTS for FreeVec()
-    m68k_write_16(ADDR_EXEC_BASE - 0x2b0, 0x4e75);
-    m68k_write_16(ADDR_DOS_BASE - 0x3b4, 0x4e40);                                // TRAP + RTS for PutStr()
-    m68k_write_16(ADDR_DOS_BASE - 0x3b2, 0x4e75);
-    m68k_write_16(ADDR_DOS_BASE - 0x090, 0x4e40);                                // TRAP + RTS for Exit()
-    m68k_write_16(ADDR_DOS_BASE - 0x088, 0x4e75);
-    m68k_write_16(ADDR_DOS_BASE - 0x054, 0x4e40);                                // TRAP + RTS for Lock()
-    m68k_write_16(ADDR_DOS_BASE - 0x052, 0x4e75);
-    m68k_write_16(ADDR_DOS_BASE - 0x05a, 0x4e40);                                // TRAP + RTS for UnLock()
-    m68k_write_16(ADDR_DOS_BASE - 0x058, 0x4e75);
-    m68k_write_16(ADDR_DOS_BASE - 0x066, 0x4e40);                                // TRAP + RTS for Examine()
-    m68k_write_16(ADDR_DOS_BASE - 0x064, 0x4e75);
-    m68k_write_16(ADDR_DOS_BASE - 0x06c, 0x4e40);                                // TRAP + RTS for ExNext()
-    m68k_write_16(ADDR_DOS_BASE - 0x06a, 0x4e75);
-    m68k_write_16(ADDR_DOS_BASE - 0x084, 0x4e40);                                // TRAP + RTS for IoErr()
-    m68k_write_16(ADDR_DOS_BASE - 0x082, 0x4e75);
     m68k_write_32(ADDR_EXV_TRAP_0, ADDR_CODE_END - 1);                           // exception vector for traps
     m68k_write_16(ADDR_CODE_END - 1, 0x4e73);                                    // RTE instruction
 
