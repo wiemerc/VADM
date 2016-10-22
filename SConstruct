@@ -9,7 +9,7 @@ main.Program('vadm', Glob('*.cxx') + Glob ('Musashi/*.c'), LIBS = ['log4cxx', 'P
 # test programs
 test = Environment()
 test.Replace(CC = '/opt/m68k-amigaos/bin/m68k-amigaos-gcc')
-test.Append(CCFLAGS = '-Wall -I/usr/include -D__KLIBC__')
+test.Append(CCFLAGS = '-Wall -Ilinux-usr-include -Ilinux-usr-include/i386-linux-gnu -D__KLIBC__')
 test.Append(LINKFLAGS = '-s -nostdlib')
 test.Program('strtoupper', ['strtoupper.c'])
 test.Program('amihello', ['cwcrt0.c', 'amihello.c'])
