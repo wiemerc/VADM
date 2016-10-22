@@ -81,7 +81,7 @@ int fnmatch(const char *pattern, const char *fname)
     }
     if (!done && (*p == 0) && (*s == 0))
         matched = 1;
-    
+
     return matched;
 }
 
