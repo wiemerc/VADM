@@ -65,6 +65,8 @@ public:
     void free(uint8_t *block);
 
 private:
+    static const uint32_t MEMORY_MIN_BLOCK_SIZE = 256;
+
     typedef struct
     {
         bool     mcb_isFree;

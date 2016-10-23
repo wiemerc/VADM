@@ -18,22 +18,31 @@ MemoryManager::MemoryManager()
 }
 
 
-uint8_t *MemoryManager::alloc(const uint32_t size)
+uint8_t *MemoryManager::alloc(uint32_t size)
 {
     // This simple algorithm for memory allocation is based on this article: http://www.ibm.com/developerworks/library/l-memory/
     // It is not suitable for a real application (because of fragmentation and probably also performance).
-    // TODO: Use chunks of a fixed size
+    // We always allocate at least MEMORY_MIN_BLOCK_SIZE bytes.
+    if (size < MEMORY_MIN_BLOCK_SIZE)
+        size = MEMORY_MIN_BLOCK_SIZE;
+
     uint8_t *ptr = PTR_M68K_TO_HOST(ADDR_HEAP_START);
-    MEMORY_CONTROLL_BLOCK *mcb;
+    MEMORY_CONTROLL_BLOCK *mcb, *newmcb;
 
     // walk through list of previously allocated blocks and see if there is a free one that fits
     while (ptr != m_lastMemAddr) {
         mcb = (MEMORY_CONTROLL_BLOCK *) ptr;
         if (mcb->mcb_isFree && (mcb->mcb_size >= size)) {
             mcb->mcb_isFree = false;
-            // TODO: Split blocks much larger than the requested size in two
-//            LOG4CXX_DEBUG(g_logger, Poco::format("reusing block of %d bytes at address 0x%08x from pool", mcb->mcb_size, PTR_HOST_TO_M68K(ptr)));
-            LOG4CXX_DEBUG(g_logger, "reusing block of " << mcb->mcb_size << " bytes at address " << PTR_HOST_TO_M68K(ptr) << " from pool");
+            // If this block can hold both the requested amount of bytes and at least MEMORY_MIN_BLOCK_SIZE bytes we split it.
+            if ((mcb->mcb_size - size) >= MEMORY_MIN_BLOCK_SIZE) {
+                LOG4CXX_DEBUG(g_logger, Poco::format("splitting block of %u bytes at address 0x%08x", mcb->mcb_size, PTR_HOST_TO_M68K(ptr)));
+                newmcb = (MEMORY_CONTROLL_BLOCK *) (ptr + sizeof(MEMORY_CONTROLL_BLOCK) + size);
+                newmcb->mcb_isFree = true;
+                newmcb->mcb_size   = mcb->mcb_size - size - sizeof(MEMORY_CONTROLL_BLOCK);
+                mcb->mcb_size = size;
+            }
+            LOG4CXX_DEBUG(g_logger, Poco::format("reusing block of %u bytes at address 0x%08x from pool", mcb->mcb_size, PTR_HOST_TO_M68K(ptr)));
             return ptr + sizeof(MEMORY_CONTROLL_BLOCK);
         }
         ptr += sizeof(MEMORY_CONTROLL_BLOCK) + mcb->mcb_size;
@@ -45,8 +54,7 @@ uint8_t *MemoryManager::alloc(const uint32_t size)
         mcb->mcb_isFree = false;
         mcb->mcb_size    = size;
         m_lastMemAddr += sizeof(MEMORY_CONTROLL_BLOCK) + size;
-//        LOG4CXX_DEBUG(g_logger, Poco::format("allocating block of %d bytes at address 0x%08x from pool", mcb->mcb_size, PTR_HOST_TO_M68K(ptr)));
-        LOG4CXX_DEBUG(g_logger, "allocating block of " << mcb->mcb_size << " bytes at address " << PTR_HOST_TO_M68K(ptr) << " from pool");
+        LOG4CXX_DEBUG(g_logger, Poco::format("allocating block of %u bytes at address 0x%08x from pool", mcb->mcb_size, PTR_HOST_TO_M68K(ptr)));
         return ptr + sizeof(MEMORY_CONTROLL_BLOCK);
     }
     else {
