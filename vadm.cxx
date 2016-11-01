@@ -80,7 +80,7 @@ std::string hexdump (const uint8_t *buffer, size_t length)
 int main(int argc, char *argv[])
 {
     // setup logging
-    g_logger = log4cxx::Logger::getLogger("vade");
+    g_logger = log4cxx::Logger::getLogger("vadm");
     log4cxx::PropertyConfigurator::configure("logging.properties");
 
     // allocate memory for our VM and fill code area with STOP instructions
@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
     // load executable
     //
     if (argc < 2) {
-        LOG4CXX_ERROR(g_logger, "usage: vade <program> [arguments]");
+        LOG4CXX_ERROR(g_logger, "usage: vadm <program> [arguments]");
         return 1;
     }
     LOG4CXX_INFO(g_logger, "loading executable...");
