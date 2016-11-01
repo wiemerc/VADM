@@ -6,7 +6,6 @@
 
 
 #include "libs.h"
-#include "memory.h"
 
 // Amiga OS headers
 // We need to define _SYS_TIME_H_ to avoid overriding the definition of struct timeval by <devices/timer.h>
@@ -132,6 +131,43 @@ DOSLibrary::DOSLibrary(uint32_t base) {
 }
 
 
+void DOSLibrary::getFileInfo(const Poco::File &obj, struct FileInfoBlock *fib)
+{
+    // file / directory name
+    strncpy(fib->fib_FileName, Poco::Path(obj.path()).getFileName().c_str(), 100);
+
+    // type
+    if (obj.isDirectory())
+        fib->fib_DirEntryType = +1;
+    else
+        fib->fib_DirEntryType = -1;                         // We treat special files as regular files
+
+    // size
+    if (obj.isFile())
+        fib->fib_Size = SWAP_BYTES(obj.getSize());         // This is only correct if the file is smaller than 4GB
+    else
+        // TODO: What was the size of directory in AmigaDOS?
+        fib->fib_Size = 0;
+
+    // flags (only the ones that are available in Unix / Windows)
+    fib->fib_Protection = 0;
+    if (!obj.canRead())
+        fib->fib_Protection |= FIBF_READ;
+    if (!obj.canWrite())
+        fib->fib_Protection |= FIBF_WRITE;
+    if (!obj.canExecute())
+        fib->fib_Protection |= FIBF_EXECUTE;
+    fib->fib_Protection = SWAP_BYTES(fib->fib_Protection);
+
+    // timestamp
+    int tzdiff;
+    auto tsdiff = Poco::DateTime(obj.getLastModified()) - Poco::DateTimeParser::parse("%d/%m/%Y %H:%M:%S %Z", "01/01/1978 00:00:00 GMT", tzdiff);
+    fib->fib_Date.ds_Days   = tsdiff.days();
+    fib->fib_Date.ds_Minute = tsdiff.hours() * 60 + tsdiff.minutes();
+    fib->fib_Date.ds_Tick   = tsdiff.seconds() * 50;
+}
+
+
 //
 // PutStr
 // D1: string
@@ -142,6 +178,7 @@ uint32_t DOSLibrary::PutStr()
     LOG4CXX_DEBUG(g_logger, "DOSLibrary::PutStr() has been called");
     const char *str = (const char *) PTR_M68K_TO_HOST(m68k_get_reg(NULL, M68K_REG_D1));
     std::cout << str;
+    // TODO: Flush output
     return 0;
 }
 
@@ -202,7 +239,6 @@ uint32_t DOSLibrary::UnLock()
 // Examine
 // D1: BPTR to struct FileLock
 // D2: pointer to struct FileInfoBlock
-// D2: access mode (not used)
 // returns: > 0 or 0 in case of an error
 //
 uint32_t DOSLibrary::Examine()
@@ -212,30 +248,25 @@ uint32_t DOSLibrary::Examine()
     struct FileInfoBlock *fib   = (struct FileInfoBlock *) PTR_M68K_TO_HOST(m68k_get_reg(NULL, M68K_REG_D2));
 
     Poco::File *obj = (Poco::File *) lock->fl_Key;
-
-    // fill FileInfoBlock with information of the current object
-    // TODO: What was the size of directory in AmigaDOS?
-    // TODO: Add flags and timestamp
-    strncpy(fib->fib_FileName, Poco::Path(obj->path()).getFileName().c_str(), 100);
-    if (obj->isFile())
-        fib->fib_Size = SWAP_BYTES(obj->getSize());         // This is only correct if the file is smaller than 4GB
-    else
-        fib->fib_Size = 0;
     if (obj->isDirectory()) {
-        // TODO: Use correct values for dirs and files
-        fib->fib_DirEntryType = +1;
         // create DirectoryIterator object and store the pointer in fl_Task field of the lock. This of course breaks
         // programs which use this field to find out the handler that owns the lock...
         Poco::DirectoryIterator *it = new Poco::DirectoryIterator(*obj);
         lock->fl_Task = (struct MsgPort *) it;
     }
-    else
-        fib->fib_DirEntryType = -1;                         // We treat special files as regular files
 
+    // fill FileInfoBlock with information of the current object
+    getFileInfo(*obj, fib);
     return 1;
 }
 
 
+//
+// ExNext
+// D1: BPTR to struct FileLock
+// D2: pointer to struct FileInfoBlock
+// returns: > 0 or 0 in case of an error
+//
 uint32_t DOSLibrary::ExNext()
 {
     LOG4CXX_DEBUG(g_logger, "DOSLibrary::ExNext() has been called");
@@ -250,17 +281,9 @@ uint32_t DOSLibrary::ExNext()
         return 0;
     }
 
-    // fill FileInfoBlock with information of the current object
+    // fill FileInfoBlock with information of the current object (dereferencing the iterator provides a Poco::File object)
     LOG4CXX_DEBUG(g_logger, "current object: " << it->path().getFileName());
-    strncpy(fib->fib_FileName, it->path().getFileName().c_str(), 100);
-    if ((*it)->isFile())
-        fib->fib_Size = SWAP_BYTES((*it)->getSize());       // This is only correct if the file is smaller than 4GB
-    else
-        fib->fib_Size = 0;
-    if ((*it)->isDirectory())
-        fib->fib_DirEntryType = +1;
-    else
-        fib->fib_DirEntryType = -1;                         // We treat special files as regular files
+    getFileInfo(**it, fib);
 
     // move iterator to next entry
     ++(*it);
@@ -268,9 +291,12 @@ uint32_t DOSLibrary::ExNext()
 }
 
 
+//
+// IoErr
+// returns: error from last system routine
+//
 uint32_t DOSLibrary::IoErr()
 {
     LOG4CXX_DEBUG(g_logger, "DOSLibrary::IoErr() has been called");
     return m_errno;
 }
-

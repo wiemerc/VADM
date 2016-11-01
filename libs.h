@@ -12,12 +12,21 @@
 #include <Poco/Path.h>
 #include <Poco/File.h>
 #include <Poco/DirectoryIterator.h>
+#include <Poco/DateTime.h>
+#include <Poco/DateTimeParser.h>
 
 #include "memory.h"
 
 extern "C"
 {
 #include "Musashi/m68k.h"
+
+// Amiga OS headers
+// We need to define _SYS_TIME_H_ to avoid overriding the definition of struct timeval by <devices/timer.h>
+// (which is included by <dos/dosextens.h>)
+#define _SYS_TIME_H_
+#include <exec/memory.h>
+#include <dos/dosextens.h>
 }
 
 
@@ -81,6 +90,8 @@ public:
 
 private:
     uint32_t m_errno;
+
+    void getFileInfo(const Poco::File &obj, struct FileInfoBlock *);
 
     uint32_t PutStr();
     uint32_t IoErr();
