@@ -5,6 +5,7 @@
 #include <proto/dos.h>
 #include <exec/types.h>
 #include <exec/memory.h>
+#include <dos/dos.h>
 #include <dos/dosextens.h>
 
 
@@ -112,11 +113,22 @@ int flgmatch(const char *flagstr, const int flagmask)
 }
 
 
+void fmtdate(const struct DateStamp ds, char *buffer, const int bufsize)
+{
+    long minutes;
+
+    minutes = ds.ds_Minute % 60;
+    if (ds.ds_Tick > 30 * 50)
+        ++minutes;
+    snprintf(buffer, bufsize, "%ld days, %ld hours, %ld minutes", ds.ds_Days, ds.ds_Minute / 60, minutes);
+}
+
+
 void search(const char *dir, const char *pattern, const char *flagstr)
 {
     BPTR                   lock;
     struct FileInfoBlock *fib;
-    char                   newdir[MAX_PATH_LEN];
+    char                   newdir[MAX_PATH_LEN], date[50];
     static unsigned int    depth = 0;
 
     if ((lock = Lock (dir, ACCESS_READ)) != 0) {
@@ -136,8 +148,11 @@ void search(const char *dir, const char *pattern, const char *flagstr)
                             }
                             else {
                                 // plain file => just output file name, size and flags if name and flags match
-                                if (fnmatch(pattern, fib->fib_FileName) && flgmatch(flagstr, fib->fib_Protection))
-                                    printf("%s/%-30s%10ld\t%ld\n", dir, fib->fib_FileName, fib->fib_Size, fib->fib_Protection);
+                                if (fnmatch(pattern, fib->fib_FileName) && flgmatch(flagstr, fib->fib_Protection)) {
+                                    fmtdate(fib->fib_Date, date, 50);
+                                    printf("%s/%-30s%10ld\t%5ld\t%s\n", dir, fib->fib_FileName, fib->fib_Size,
+                                           fib->fib_Protection, date);
+                                }
                             }
                         }
                         if (IoErr() != ERROR_NO_MORE_ENTRIES)
@@ -165,7 +180,7 @@ void search(const char *dir, const char *pattern, const char *flagstr)
 
 int cwmain(int argc, char **argv)
 {
-    char *dir, *arg, *pattern = "", *flags = "", *mtime = "";
+    char *dir, *arg, *pattern = "", *flags = "";
 
     printf("argc = %d\n", argc);
     printf("program name = %s\n", *argv);
@@ -183,8 +198,6 @@ int cwmain(int argc, char **argv)
                         pattern = *argv;
                     else if (strcmp(arg, "-flags") == 0)
                         flags = *argv;
-                    else if (strcmp(arg, "-mtime") == 0)
-                        mtime = *argv;
                     else
                         printf("unknown predicate '%s'\n", arg);
                 }
@@ -195,13 +208,12 @@ int cwmain(int argc, char **argv)
         }
     }
     else {
-        printf("usage: amifind <dir> [-name <pattern>] [-flags <flags>] [-mtime <[+|-]days]\n");
+        printf("usage: amifind <dir> [-name <pattern>] [-flags <flags>]\n");
         return 1;
     }
     
     printf("pattern = '%s'\n", pattern);
     printf("flags = '%s'\n", flags);
-    printf("mtime = '%s'\n", mtime);
 
     search(dir, pattern, flags);
 
