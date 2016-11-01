@@ -37,6 +37,10 @@ int fnmatch(const char *pattern, const char *fname)
     int			matched = 0;
     int         done    = 0;
 
+    // shortcut if pattern is empty
+    if (*p == 0)
+        return 1;
+
     while ((*p != 0) && (*s != 0) && !done)
     {
         switch (*p)
@@ -86,7 +90,29 @@ int fnmatch(const char *pattern, const char *fname)
 }
 
 
-void search(const char *dir, const char *pattern)
+int flgmatch(const char *flagstr, const int flagmask)
+{
+    int matched = 1;
+
+    while (matched && (*flagstr != 0)) {
+        switch (*flagstr) {
+            case 'r':
+                matched = !(flagmask & FIBF_READ);
+                break;
+            case 'w':
+                matched = !(flagmask & FIBF_WRITE);
+                break;
+            case 'x':
+                matched = !(flagmask & FIBF_EXECUTE);
+                break;
+        }
+        ++flagstr;
+    }
+    return matched;
+}
+
+
+void search(const char *dir, const char *pattern, const char *flagstr)
 {
     BPTR                   lock;
     struct FileInfoBlock *fib;
@@ -106,12 +132,12 @@ void search(const char *dir, const char *pattern)
                                 strncpy(newdir, dir, MAX_PATH_LEN - 1);
                                 strncat(newdir, "/", MAX_PATH_LEN - 1 - strlen(dir));
                                 strncat(newdir, fib->fib_FileName, MAX_PATH_LEN - 2 - strlen(dir));
-                                search(newdir, pattern);
+                                search(newdir, pattern, flagstr);
                             }
                             else {
-                                // plain file => just output file name and size if the name matches the pattern
-                                if (fnmatch(pattern, fib->fib_FileName))
-                                    printf("%s/%-30s%ld\n", dir, fib->fib_FileName, fib->fib_Size);
+                                // plain file => just output file name, size and flags if name and flags match
+                                if (fnmatch(pattern, fib->fib_FileName) && flgmatch(flagstr, fib->fib_Protection))
+                                    printf("%s/%-30s%10ld\t%ld\n", dir, fib->fib_FileName, fib->fib_Size, fib->fib_Protection);
                             }
                         }
                         if (IoErr() != ERROR_NO_MORE_ENTRIES)
@@ -177,7 +203,7 @@ int cwmain(int argc, char **argv)
     printf("flags = '%s'\n", flags);
     printf("mtime = '%s'\n", mtime);
 
-    search(dir, pattern);
+    search(dir, pattern, flags);
 
     return 0;
 }
