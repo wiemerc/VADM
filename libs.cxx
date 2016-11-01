@@ -162,9 +162,9 @@ void DOSLibrary::getFileInfo(const Poco::File &obj, struct FileInfoBlock *fib)
     // timestamp
     int tzdiff;
     auto tsdiff = Poco::DateTime(obj.getLastModified()) - Poco::DateTimeParser::parse("%d/%m/%Y %H:%M:%S %Z", "01/01/1978 00:00:00 GMT", tzdiff);
-    fib->fib_Date.ds_Days   = tsdiff.days();
-    fib->fib_Date.ds_Minute = tsdiff.hours() * 60 + tsdiff.minutes();
-    fib->fib_Date.ds_Tick   = tsdiff.seconds() * 50;
+    fib->fib_Date.ds_Days   = SWAP_BYTES(tsdiff.days());
+    fib->fib_Date.ds_Minute = SWAP_BYTES(tsdiff.hours() * 60 + tsdiff.minutes());
+    fib->fib_Date.ds_Tick   = SWAP_BYTES(tsdiff.seconds() * 50);
 }
 
 
