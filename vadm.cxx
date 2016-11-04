@@ -135,20 +135,29 @@ int main(int argc, char *argv[])
     // and 1024 characters in total => thus the offset of 32 between nargv and the buffer for the copied strings.
     // Memory needed: 1024 characters + 9 * 4 bytes for the pointers (8 arguments + terminating NULL pointer) + 8 NUL bytes
     if (argc <= 9) {
-        uint32_t nargv = PTR_HOST_TO_M68K(g_memmgr->alloc(1068));
-        uint32_t bufptr = nargv + 32;
-        uint32_t nargc = 0;
-        ++argv;
+        uint32_t nargc   = 0;
+        uint32_t nargv   = PTR_HOST_TO_M68K(g_memmgr->alloc(1068));
+        uint32_t bufptr  = nargv + 32;
+        uint32_t bufsize = 1024;
+
+        ++argv;                         // skip program name
         while (*argv != NULL) {
-            // TODO: We should use strncpy and keep track of the already used memory
-            strcpy((char *) (PTR_M68K_TO_HOST(bufptr)), *argv);
-            m68k_write_32(nargv, bufptr);
-            bufptr += strlen(*argv) + 1;
-            ++argv;
-            nargv += 4;
-            ++nargc;
+            uint32_t arglen = strlen(*argv);
+            if (arglen < bufsize) {
+                strncpy((char *) (PTR_M68K_TO_HOST(bufptr)), *argv, bufsize);
+                m68k_write_32(nargv, bufptr);
+                bufptr  += arglen + 1;
+                bufsize -= arglen + 1;
+                ++argv;
+                ++nargc;
+                nargv += 4;
+            }
+            else {
+                LOG4CXX_FATAL(g_logger, "command line too long");
+                return 1;
+            }
         }
-        m68k_write_32(nargv, 0);
+        m68k_write_32(nargv, 0);        // terminating NULL pointer
         m68k_set_reg(M68K_REG_A0, nargv - nargc * 4);
         m68k_set_reg(M68K_REG_D0, nargc);
     }
