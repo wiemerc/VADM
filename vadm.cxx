@@ -83,11 +83,7 @@ int main(int argc, char *argv[])
     g_logger = log4cxx::Logger::getLogger("vadm");
     log4cxx::PropertyConfigurator::configure("logging.properties");
 
-    // allocate memory for our VM and fill code area with STOP instructions
-    // TODO: Move this to the MemoryManager class
-    g_mem = new uint8_t[ADDR_MEM_END - ADDR_MEM_START + 1];
-    for (uint16_t *p = (uint16_t *) (g_mem + ADDR_CODE_START + 10); p < (uint16_t *) (g_mem + ADDR_CODE_END); ++p)
-        *p = 0x724e;
+    // create memory manager
     g_memmgr = new MemoryManager();
 
     //

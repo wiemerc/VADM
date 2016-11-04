@@ -13,8 +13,13 @@
 //
 MemoryManager::MemoryManager()
 {
+    // allocate memory for our VM and fill code area with STOP instructions
+    g_mem = new uint8_t[ADDR_MEM_END - ADDR_MEM_START + 1];
+    for (uint16_t *p = (uint16_t *) (g_mem + ADDR_CODE_START + 10); p < (uint16_t *) (g_mem + ADDR_CODE_END); ++p)
+        *p = 0x724e;
+
     // initialize memory pool
-    MemoryManager::m_lastMemAddr = PTR_M68K_TO_HOST(ADDR_HEAP_START);
+    m_lastMemAddr = PTR_M68K_TO_HOST(ADDR_HEAP_START);
 }
 
 
