@@ -23,8 +23,11 @@ void AmiHunkLoader::load(char *fname, uint32_t loc)
     uint32_t hnum = 0;                              // hunk number
     uint32_t hloc = loc;                            // hunk location relative to the base address g_mem
     std::vector <uint32_t> hlocs;                   // mapping of hunk numbers to locations
-    while (!reader.eof()) {
+    while (true) {
         reader >> btype;
+        if (reader.eof())
+            break;
+
         switch (btype)
         {
             case HUNK_HEADER:
@@ -109,7 +112,6 @@ void AmiHunkLoader::load(char *fname, uint32_t loc)
                 break;
 
             default:
-                // TODO: Fix errors
                 LOG4CXX_ERROR(g_logger, "unknown block type: " << btype);
         }
     }
