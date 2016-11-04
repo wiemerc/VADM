@@ -178,7 +178,7 @@ uint32_t DOSLibrary::PutStr()
     LOG4CXX_DEBUG(g_logger, "DOSLibrary::PutStr() has been called");
     const char *str = (const char *) PTR_M68K_TO_HOST(m68k_get_reg(NULL, M68K_REG_D1));
     std::cout << str;
-    // TODO: Flush output
+    std::cout.flush();
     return 0;
 }
 
