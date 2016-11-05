@@ -60,6 +60,8 @@ class MemoryManager
 {
 public:
     MemoryManager();
+    ~MemoryManager();
+
     uint8_t * alloc(const uint32_t size);
     void free(uint8_t *block);
 

@@ -23,6 +23,12 @@ MemoryManager::MemoryManager()
 }
 
 
+MemoryManager::~MemoryManager()
+{
+    delete[] g_mem;
+}
+
+
 uint8_t *MemoryManager::alloc(uint32_t size)
 {
     // This simple algorithm for memory allocation is based on this article: http://www.ibm.com/developerworks/library/l-memory/
@@ -67,6 +73,7 @@ uint8_t *MemoryManager::alloc(uint32_t size)
         throw std::runtime_error("out of memory");
     }
 }
+
 
 void MemoryManager::free(uint8_t *ptr)
 {
