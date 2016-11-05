@@ -10,7 +10,7 @@
 
 
 // standard headers
-#include <stdint.h>                     // can't use cstdint because it requires C++11 support
+#include <cstdint>
 #include <vector>
 
 // Apache log4cxx
