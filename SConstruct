@@ -1,4 +1,4 @@
-env = Environment(TARGET_ARCH = 'i386')
+env = Environment()
 env.Replace(CC = 'clang', CXX = 'clang++')
 env.Append(CCFLAGS = '-m32 -Wall -g')
 env.Append(CXXFLAGS = '-std=c++11 -m32 -Wall -g -I/opt/local/include -I/usr/local/include -I/opt/m68k-amigaos/os-include')
