@@ -11,10 +11,7 @@ LDFLAGS = -arch i386 -L/opt/local/lib -L/usr/local/lib
 LDLIBS = -llog4cxx -lPocoFoundation
 
 vadm: $(OBJS)
-	$(CXX) $(LDFLAGS) -o vadm $(OBJS) $(LDLIBS)
-
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 %.o: %.cxx
 	$(CXX) $(CXXFLAGS) -c $< -o $@
