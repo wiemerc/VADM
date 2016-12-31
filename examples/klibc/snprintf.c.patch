@@ -1,0 +1,10 @@
+--- /Users/consi/Downloads/klibc-master/usr/klibc/snprintf.c	2012-02-23 12:35:38.000000000 +0100
++++ snprintf.c	2016-11-01 21:09:01.000000000 +0100
+@@ -3,6 +3,7 @@
+  */
+ 
+ #include <stdio.h>
++#include <stdarg.h>
+ 
+ int snprintf(char *buffer, size_t n, const char *format, ...)
+ {

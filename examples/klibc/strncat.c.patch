@@ -1,0 +1,10 @@
+--- /Users/consi/Downloads/klibc-master/usr/klibc/strncat.c	2012-02-23 12:35:38.000000000 +0100
++++ strncat.c	2016-07-06 13:09:54.000000000 +0200
+@@ -3,7 +3,6 @@
+  */
+ 
+ #include <string.h>
+-#include <klibc/compiler.h>
+ 
+ char *strncat(char *dst, const char *src, size_t n)
+ {

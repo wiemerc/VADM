@@ -1,0 +1,16 @@
+--- /Users/consi/Downloads/klibc-master/usr/klibc/strchr.c	2012-02-23 12:35:38.000000000 +0100
++++ strchr.c	2016-07-06 13:11:12.000000000 +0200
+@@ -3,7 +3,6 @@
+  */
+ 
+ #include <string.h>
+-#include <klibc/compiler.h>
+ 
+ char *strchr(const char *s, int c)
+ {
+@@ -15,5 +14,3 @@
+ 
+ 	return (char *)s;
+ }
+-
+-__ALIAS(char *, index, (const char *, int), strchr)
