@@ -160,6 +160,7 @@ void search(const char *dir, const char *pattern, const char *flagstr)
                     }
                     else
                         printf("maximum recursion depth reached - aborting\n");
+                    --depth;
                 }
                 else
                     printf("search() was called on a file - aborting\n");
