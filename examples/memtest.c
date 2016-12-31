@@ -27,4 +27,6 @@ int cwmain()
     ptr2 = AllocVec(256, 0);
     FreeVec(ptr2);
     FreeVec(ptr1);
+
+    return 0;
 }
