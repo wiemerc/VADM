@@ -12,6 +12,7 @@ vadm: Musashi $(OBJS)
 	$(CXX) $(LDFLAGS) -o $@ $(OBJS) Musashi/*.o $(LDLIBS)
 
 clean:
+	$(MAKE) --directory=Musashi clean
 	rm -f *.o vadm
 
 Musashi:
