@@ -2,9 +2,14 @@ CC = /opt/m68k-amigaos/bin/m68k-amigaos-gcc
 CFLAGS = -Wall -g -Ilinux-usr-include -Ilinux-usr-include/i386-linux-gnu -D__KLIBC__
 LDFLAGS = -s -nostdlib
 
-.PHONY: all klibc libgcc
+.PHONY: all clean klibc libgcc
 
 all: klibc libgcc strtoupper amihello amifind memtest
+
+clean:
+	$(MAKE) --directory=klibc clean
+	$(MAKE) --directory=libgcc clean
+	rm -f *.o strtoupper amihello amifind memtest
 
 klibc libgcc:
 	$(MAKE) --directory=$@

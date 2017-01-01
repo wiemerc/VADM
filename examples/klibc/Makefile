@@ -7,6 +7,9 @@ LDFLAGS = -s -nostdlib
 klibc: $(OBJS)
 	touch klibc
 
+clean:
+	rm -f *.o klibc
+
 %.c: %.c.patch
 	wget -q https://raw.githubusercontent.com/brainflux/klibc/master/usr/klibc/$@
 	patch -p0 < $@.patch

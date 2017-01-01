@@ -7,6 +7,9 @@ LDFLAGS = -s -nostdlib
 libgcc: $(OBJS)
 	touch libgcc
 
+clean:
+	rm -f *.o libgcc
+
 %.c: %.c.patch
 	wget -q https://raw.githubusercontent.com/brainflux/klibc/master/usr/klibc/libgcc/$@
 	patch -p0 < $@.patch
