@@ -7,7 +7,7 @@ VADM executes (simple) programs written and compiled for the Amiga microcomputer
 To execute a program, you call the emulator with the name of the program as argument, and then optionally any arguments for the program itself, for example like this:  
 ```
 ./vadm examples/amifind examples -name "*.c"
-```.
+```
 
 ## Building
 You need to have **32-bit** versions of [POCO](https://pocoproject.org) and [log4cxx](https://logging.apache.org/log4cxx/latest_stable/) installed. This is because the emulator will always be built as 32-bit binary, even if the platform is 64 bits. As the Amiga was a 32-bit computer, it was just easier this way instead of converting between 32 and 64 bits everywhere in the code.
