@@ -1,8 +1,0 @@
-env = Environment()
-env.Replace(CC = '/opt/m68k-amigaos/bin/m68k-amigaos-gcc')
-env.Append(CCFLAGS = '-Wall -Ilinux-usr-include -Ilinux-usr-include/i386-linux-gnu -D__KLIBC__')
-env.Append(LINKFLAGS = '-s -nostdlib')
-env.Program('strtoupper', ['strtoupper.c'])
-env.Program('amihello', ['cwcrt0.c', 'amihello.c'])
-env.Program('amifind', ['cwcrt0.c', 'amifind.c'] + Glob('klibc/*.c') + Glob('klibc/libgcc/*.c'))
-env.Program('memtest', ['cwcrt0.c', 'memtest.c'])

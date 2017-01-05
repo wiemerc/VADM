@@ -1,0 +1,27 @@
+import os
+
+files_to_get = Split('m68k.h m68kconf.h m68kcpu.h m68kcpu.c m68kdasm.c m68kmake.c m68k_in.c')
+gen_sources = Split('m68kopac.c m68kopdm.c m68kopnz.c m68kops.c')
+
+env = Environment(CC        = 'clang',
+                  CFLAGS    = '-m32 -Wall -Wno-implicit-function-declaration -Wno-tautological-pointer-compare',
+                  LINKFLAGS = '-arch i386',
+                  ENV       = {'PATH': ['/opt/local/bin', '/usr/local/bin', '/bin', '/usr/bin']})
+
+# download and patch source files
+for fname in files_to_get:
+    if os.path.exists(fname + '.patch'):
+        env.Command(fname, fname + '.patch', 
+            'wget -q -PMusashi https://raw.githubusercontent.com/kstenerud/Musashi/master/' + fname +
+            ' && patch $TARGET $SOURCE')
+    else:
+        env.Command(fname, [],
+            'wget -q -PMusashi https://raw.githubusercontent.com/kstenerud/Musashi/master/' + fname)
+
+# build and run code generator, we need to tell scons that the generated file(s) depend on the generator
+env.Program('m68kmake.c')
+env.Command(gen_sources + ['m68kops.h'], 'm68k_in.c', 'cd Musashi && ./m68kmake')
+env.Depends('m68kops.h', 'm68kmake')
+
+# compile all source files
+env.Object(gen_sources + ['m68kcpu.c', 'm68kdasm.c'])
