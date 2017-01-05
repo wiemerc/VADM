@@ -16,5 +16,5 @@ In order to compile _klibc_ on macOS or Windows, you need to put a copy of `/usr
 
 * Download or clone the repository
 * Change into the directory where you put it
-* Type `make`. This will download and patch the necessary parts of _klibc_ and _Musashi_, generate the _Musashi_ code and compile everything. After `make` is finished, you will find the executable `vadm` in the current directory.
+* Type `make`. This will download and patch the necessary parts of _klibc_ and _Musashi_, generate the _Musashi_ code and compile everything. After `make` is finished, you will find the executable `vadm` in the current directory. Alternatively, you can do the same using [SCons](scons.org) by typing `scons`, but of course only if you have _SCons_ installed.
 
