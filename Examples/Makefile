@@ -17,9 +17,11 @@ klibc libgcc:
 strtoupper: strtoupper.o
 
 amihello: cwcrt0.o amihello.o
+	$(CC) $(LDFLAGS) -o $@ cwcrt0.o $@.o
 
 amifind: cwcrt0.o amifind.o klibc libgcc
 	$(CC) $(LDFLAGS) -o $@ cwcrt0.o $@.o klibc/*.o libgcc/*.o
 
 memtest: cwcrt0.o memtest.o
+	$(CC) $(LDFLAGS) -o $@ cwcrt0.o $@.o
 
