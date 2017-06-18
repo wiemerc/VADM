@@ -131,50 +131,57 @@ void search(const char *dir, const char *pattern, const char *flagstr)
     char                   newdir[MAX_PATH_LEN], date[50];
     static unsigned int    depth = 0;
 
-    if ((lock = Lock (dir, ACCESS_READ)) != 0) {
-        if ((fib = AllocVec(sizeof(struct FileInfoBlock), MEMF_CLEAR)) != NULL) {
-            if (Examine(lock, fib)) {
-                if (fib->fib_DirEntryType > 0) {
-                    ++depth;
-                    if (depth <= MAX_DEPTH) {
-                        printf("examing directory '%s' (depth = %d)\n", dir, depth);
-                        while (ExNext(lock, fib)) {
-                            if(fib->fib_DirEntryType > 0) {
-                                // another directory => call ourselves recursively
-                                strncpy(newdir, dir, MAX_PATH_LEN - 1);
-                                strncat(newdir, "/", MAX_PATH_LEN - 1 - strlen(dir));
-                                strncat(newdir, fib->fib_FileName, MAX_PATH_LEN - 2 - strlen(dir));
-                                search(newdir, pattern, flagstr);
-                            }
-                            else {
-                                // plain file => just output file name, size and flags if name and flags match
-                                if (fnmatch(pattern, fib->fib_FileName) && flgmatch(flagstr, fib->fib_Protection)) {
-                                    fmtdate(fib->fib_Date, date, 50);
-                                    printf("%s/%-30s%10ld\t%5ld\t%s\n", dir, fib->fib_FileName, fib->fib_Size,
-                                           fib->fib_Protection, date);
-                                }
-                            }
-                        }
-                        if (IoErr() != ERROR_NO_MORE_ENTRIES)
-                            printf("error occurred while examing directory '%s': %ld\n", dir, IoErr());
-                    }
-                    else
-                        printf("maximum recursion depth reached - aborting\n");
-                    --depth;
-                }
-                else
-                    printf("search() was called on a file - aborting\n");
+    if ((lock = Lock (dir, ACCESS_READ)) == 0) {
+        printf("could not obtain lock for directory %s\n", dir);
+        goto ENOLOCK;
+    }
+    if ((fib = AllocVec(sizeof(struct FileInfoBlock), MEMF_CLEAR)) == NULL) {
+        printf("could not allocate memory for FileInfoBlock\n");
+        goto ENOMEM;
+    }
+    if (!Examine(lock, fib)) {
+        if (IoErr() != ERROR_NO_MORE_ENTRIES)
+            printf("error occurred while examing directory '%s': %ld\n", dir, IoErr());
+        goto ENOEXAM;
+    }
+    if (fib->fib_DirEntryType <= 0) {
+        printf("search() was called on a file - aborting\n");
+        goto ENODIR;
+    }
+    
+    ++depth;
+    if (depth <= MAX_DEPTH) {
+        printf("examing directory '%s' (depth = %d)\n", dir, depth);
+        while (ExNext(lock, fib)) {
+            if(fib->fib_DirEntryType > 0) {
+                // another directory => call ourselves recursively
+                strncpy(newdir, dir, MAX_PATH_LEN - 1);
+                strncat(newdir, "/", MAX_PATH_LEN - 1 - strlen(dir));
+                strncat(newdir, fib->fib_FileName, MAX_PATH_LEN - 2 - strlen(dir));
+                search(newdir, pattern, flagstr);
             }
-            FreeVec(fib);
+            else {
+                // plain file => just output file name, size and flags if name and flags match
+                if (fnmatch(pattern, fib->fib_FileName) && flgmatch(flagstr, fib->fib_Protection)) {
+                    fmtdate(fib->fib_Date, date, 50);
+                    printf("%s/%-30s%10ld\t%5ld\t%s\n", dir, fib->fib_FileName, fib->fib_Size,
+                           fib->fib_Protection, date);
+                }
+            }
         }
-        else
-            printf("could not allocate memory for FileInfoBlock\n");
-
-        UnLock(lock);
+        if (IoErr() != ERROR_NO_MORE_ENTRIES)
+            printf("error occurred while examing directory '%s': %ld\n", dir, IoErr());
     }
     else
-        printf("could not obtain lock for directory %s\n", dir);
-
+        printf("maximum recursion depth reached - aborting\n");
+    --depth;
+        
+ENODIR:
+ENOEXAM:
+    FreeVec(fib);
+ENOMEM:
+    UnLock(lock);
+ENOLOCK:
     return;
 }
 
