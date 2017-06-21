@@ -64,9 +64,7 @@ void AmiHunkLoader::load(char *fname, uint32_t loc)
                 LOG4CXX_INFO(g_logger, "hunk #" << hnum << ", block type = HUNK_DATA");
                 reader >> nwords;
                 LOG4CXX_DEBUG(g_logger, "size (in bytes) of data block: " << nwords * 4);
-                // Both the AmigaDOS manual and the Amiga Guru book state that after the length word only the data itself and nothing else follows,
-                // but it seems in executables the data is always followed by a null word...
-                reader.readRaw((char *) g_mem + hlocs[hnum], (nwords + 1) * 4);
+                reader.readRaw((char *) g_mem + hlocs[hnum], nwords * 4);
                 LOG4CXX_TRACE(g_logger, "hex dump of block:\n" << hexdump(g_mem + hlocs[hnum], nwords * 4));
                 break;
 
