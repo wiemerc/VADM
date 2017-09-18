@@ -12,6 +12,7 @@
 // standard headers
 #include <cstdint>
 #include <vector>
+#include <stdexcept>
 
 // Apache log4cxx
 #include "log4cxx/logger.h"
@@ -124,44 +125,35 @@ int main(int argc, char *argv[])
     LOG4CXX_INFO(g_logger, "executing program...");
 
     // pass the command line to the program
-    // On the Amiga the command line was passed as one string in A0 (the pointer) and the length in D0. To avoid that
-    // we need to construct the command line from argv here and parse it again into argv in the startup code I changed
-    // the interface a bit: A0 contains argv and D0 contains argc. This only works with my custom startup code of course.
-    // We need to construct a new argument vector in the memory of the VM though. We support a maximum of 8 arguments
-    // and 1024 characters in total => thus the offset of 32 between nargv and the buffer for the copied strings.
-    // Memory needed: 1024 characters + 9 * 4 bytes for the pointers (8 arguments + terminating NULL pointer) + 8 NUL bytes
-    if (argc <= 9) {
-        uint32_t nargc   = 0;
-        uint32_t nargv   = PTR_HOST_TO_M68K(g_memmgr->alloc(1068));
-        uint32_t bufptr  = nargv + 32;
-        uint32_t bufsize = 1024;
-
-        ++argv;                         // skip program name
-        while (*argv != NULL) {
-            uint32_t arglen = strlen(*argv);
-            if (arglen < bufsize) {
-                strncpy((char *) (PTR_M68K_TO_HOST(bufptr)), *argv, bufsize);
-                m68k_write_32(nargv, bufptr);
-                bufptr  += arglen + 1;
-                bufsize -= arglen + 1;
-                ++argv;
-                ++nargc;
-                nargv += 4;
-            }
-            else {
-                LOG4CXX_FATAL(g_logger, "command line too long");
-                return 1;
-            }
+    // On the Amiga the command line was passed as one string in A0 (the pointer)
+    // and the length in D0. So we need to concatenate all but the first elements
+    // of argv and store them in one string in the VM's memory, separated by spaces.
+    // TODO: Use the Poco application class and it's argument vector
+    char *cmdline = (char *) g_memmgr->alloc(1024);
+    char *bufptr = cmdline;
+    uint32_t bufsize = 1023;                    // one byte less than the buffer size to leave room for the terminating NUL byte
+    ++argv;                                     // skip program name
+    while (*argv != NULL) {
+        uint32_t arglen = strlen(*argv);
+        if (arglen + 1 < bufsize) {             // arglen + 1 to account for the additional space
+            strncpy(bufptr, *argv, bufsize);    // copy argument
+            bufptr  += arglen;
+            bufsize -= arglen;
+            strncpy(bufptr, " ", bufsize);      // add space
+            ++bufptr;
+            --bufsize;
+            ++argv;
         }
-        m68k_write_32(nargv, 0);        // terminating NULL pointer
-        m68k_set_reg(M68K_REG_A0, nargv - nargc * 4);
-        m68k_set_reg(M68K_REG_D0, nargc);
+        else {
+            LOG4CXX_FATAL(g_logger, "command line too long");
+            return 1;
+        }
     }
-    else {
-        LOG4CXX_FATAL(g_logger, "more than 8 arguments were provided");
-        return 1;
-    }
-
+    cmdline[1023] = 0;                          // terminate string in all cases
+    LOG4CXX_DEBUG(g_logger, "command line: " << cmdline);
+    m68k_set_reg(M68K_REG_A0, PTR_HOST_TO_M68K(cmdline));
+    m68k_set_reg(M68K_REG_D0, strlen(cmdline));
+    
     // open Exec library
     m68k_write_32(4, ADDR_EXEC_BASE);                                            // base of Exec library
     g_libmap[ADDR_EXEC_BASE] = new ExecLibrary(ADDR_EXEC_BASE);
