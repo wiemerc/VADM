@@ -22,6 +22,13 @@ Musashi:
 Examples:
 	$(MAKE) --directory=$@
 
+Poco:
+	wget -q https://pocoproject.org/releases/poco-1.7.8/poco-1.7.8p2.tar.gz
+	tar -xzf poco-1.7.8p2.tar.gz
+	cd poco-1.7.8p2 && ./configure --config=Darwin32
+	make -C poco-1.7.8p2
+	make -C poco-1.7.8p2 install
+
 %.o: %.cxx
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
