@@ -78,8 +78,13 @@ public:
 private:
 
     uint32_t OpenLibrary();
+    uint32_t CloseLibrary();
     uint32_t AllocVec();
     uint32_t FreeVec();
+    uint32_t FindTask();
+    uint32_t Forbid();
+    uint32_t Permit();
+    uint32_t ReplyMsg();
 };
 
 

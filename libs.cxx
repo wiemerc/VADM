@@ -47,9 +47,13 @@ ExecLibrary::ExecLibrary(uint32_t base)
 {
     // add functions to map
     m_funcmap[0x228] = (FUNCPTR) &ExecLibrary::OpenLibrary;
+	m_funcmap[0x19e] = (FUNCPTR) &ExecLibrary::CloseLibrary;
     m_funcmap[0x2ac] = (FUNCPTR) &ExecLibrary::AllocVec;
     m_funcmap[0x2b2] = (FUNCPTR) &ExecLibrary::FreeVec;
     m_funcmap[0x126] = (FUNCPTR) &ExecLibrary::FindTask;
+	m_funcmap[0x84]  = (FUNCPTR) &ExecLibrary::Forbid;
+	m_funcmap[0x8a]  = (FUNCPTR) &ExecLibrary::Permit;
+	m_funcmap[0x17a] = (FUNCPTR) &ExecLibrary::ReplyMsg;
 
     // lines below have been generated with the following command line:
     // grep syscall exec_pragmas.h | perl -nale 'print "m_funcmap[0x$F[3]] = nullptr;    // $F[2]"'
@@ -64,8 +68,6 @@ ExecLibrary::ExecLibrary(uint32_t base)
 	m_funcmap[0x72] = nullptr;    // Debug
 	m_funcmap[0x78] = nullptr;    // Disable
 	m_funcmap[0x7e] = nullptr;    // Enable
-	m_funcmap[0x84] = nullptr;    // Forbid
-	m_funcmap[0x8a] = nullptr;    // Permit
 	m_funcmap[0x90] = nullptr;    // SetSR
 	m_funcmap[0x96] = nullptr;    // SuperState
 	m_funcmap[0x9c] = nullptr;    // UserState
@@ -104,13 +106,11 @@ ExecLibrary::ExecLibrary(uint32_t base)
 	m_funcmap[0x168] = nullptr;    // RemPort
 	m_funcmap[0x16e] = nullptr;    // PutMsg
 	m_funcmap[0x174] = nullptr;    // GetMsg
-	m_funcmap[0x17a] = nullptr;    // ReplyMsg
 	m_funcmap[0x180] = nullptr;    // WaitPort
 	m_funcmap[0x186] = nullptr;    // FindPort
 	m_funcmap[0x18c] = nullptr;    // AddLibrary
 	m_funcmap[0x192] = nullptr;    // RemLibrary
 	m_funcmap[0x198] = nullptr;    // OldOpenLibrary
-	m_funcmap[0x19e] = nullptr;    // CloseLibrary
 	m_funcmap[0x1a4] = nullptr;    // SetFunction
 	m_funcmap[0x1aa] = nullptr;    // SumLibrary
 	m_funcmap[0x1b0] = nullptr;    // AddDevice
@@ -185,6 +185,20 @@ uint32_t ExecLibrary::OpenLibrary()
 }
 
 
+uint32_t ExecLibrary::CloseLibrary()
+{
+    LOG4CXX_DEBUG(g_logger, "ExecLibrary::CloseLibrary() has been called");
+    uint32_t lib = m68k_get_reg(NULL, M68K_REG_A1);
+    if(g_libmap.find(lib) != g_libmap.end()) {
+        g_libmap.erase(lib);
+    }
+    else {
+        LOG4CXX_WARN(g_logger, "library with base address " << Poco::format("0x%08x", lib) << " has not been opened");
+    }
+    return 0;
+}
+
+
 uint32_t ExecLibrary::AllocVec()
 {
     LOG4CXX_DEBUG(g_logger, "ExecLibrary::AllocVec() has been called");
@@ -217,17 +231,66 @@ uint32_t ExecLibrary::FreeVec()
 }
 
 
+uint32_t ExecLibrary::FindTask()
+{
+    LOG4CXX_DEBUG(g_logger, "ExecLibrary::FindTask() has been called");
+    // We don't convert the pointer to a host pointer yet so that we can check for a NULL pointer.
+    const char *taskname = (const char *) m68k_get_reg(NULL, M68K_REG_A1);
+    if (taskname == nullptr) {
+        // create a process structure with pr_CLI not NULL to indicate the program has been
+        // started from the CLI and return a pointer to it
+        LOG4CXX_DEBUG(g_logger, "task name is NULL - creating process structure");
+        struct Process *proc = ((struct Process *) g_memmgr->alloc(sizeof(struct Process)));
+        // The startup code of libnix means to check if pr_CLI is not NULL in order to
+        // distinguish between a start from the Workbench and a start from the CLI. But
+        // it uses the offset 172 which corresponds to pr_COS according to the docs for
+        // OS 3.5. Hence we set pr_COS below.
+        proc->pr_COS = 0xffffffff;
+        return PTR_HOST_TO_M68K(proc);
+    }
+    else {
+        // finding another process by name (there aren't any anyway...) is not supported
+        LOG4CXX_WARN(g_logger, "task name is '" << PTR_M68K_TO_HOST(taskname) << "' - returning NULL");
+        return 0;
+    }
+}
+
+
+uint32_t ExecLibrary::Forbid()
+{
+    LOG4CXX_DEBUG(g_logger, "ExecLibrary::Forbid() has been called");
+    return 0;
+}
+
+
+uint32_t ExecLibrary::Permit()
+{
+    LOG4CXX_DEBUG(g_logger, "ExecLibrary::Permit() has been called");
+    return 0;
+}
+
+
+uint32_t ExecLibrary::ReplyMsg()
+{
+    LOG4CXX_DEBUG(g_logger, "ExecLibrary::ReplyMsg() has been called");
+    // TODO: For now this routine has no functionality because it's only called by the
+    //       startup code to reply the intial message to the Workbench. Once we
+    //       implement messaging, we need to implement the correct functionality.
+    return 0;
+}
+
+
 //
 // methods of DOSLibrary
 //
 
 DOSLibrary::DOSLibrary(uint32_t base) {
-    m_funcmap[0x3b4] = (FUNCPTR) & DOSLibrary::PutStr;
-    m_funcmap[0x054] = (FUNCPTR) & DOSLibrary::Lock;
-    m_funcmap[0x05a] = (FUNCPTR) & DOSLibrary::UnLock;
-    m_funcmap[0x066] = (FUNCPTR) & DOSLibrary::Examine;
-    m_funcmap[0x06c] = (FUNCPTR) & DOSLibrary::ExNext;
-    m_funcmap[0x084] = (FUNCPTR) & DOSLibrary::IoErr;
+    m_funcmap[0x3b4] = (FUNCPTR) &DOSLibrary::PutStr;
+    m_funcmap[0x054] = (FUNCPTR) &DOSLibrary::Lock;
+    m_funcmap[0x05a] = (FUNCPTR) &DOSLibrary::UnLock;
+    m_funcmap[0x066] = (FUNCPTR) &DOSLibrary::Examine;
+    m_funcmap[0x06c] = (FUNCPTR) &DOSLibrary::ExNext;
+    m_funcmap[0x084] = (FUNCPTR) &DOSLibrary::IoErr;
 
     // lines below have been generated with the following command line:
     // grep libcall dos_pragmas.h | perl -nale 'print "m_funcmap[0x$F[4]] = nullptr;    // $F[3]"'
