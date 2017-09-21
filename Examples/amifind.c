@@ -13,19 +13,6 @@
 #define MAX_PATH_LEN 1024
 
 
-int printf(const char *str, ...)
-{
-    va_list argp;
-    char buffer[1024];
-
-    va_start(argp, str);
-    vsnprintf(buffer, 1024, str, argp);
-    PutStr(buffer);
-    va_end(argp);
-    return 0;
-}
-
-
 //
 // fnmatch - matches a file name against a pattern (a '?' matches a single character, a '*' matches an arbitrary string)
 //
@@ -186,7 +173,7 @@ ENOLOCK:
 }
 
 
-int cwmain(int argc, char **argv)
+int main(int argc, char **argv)
 {
     char *dir, *arg, *pattern = "", *flags = "";
 
