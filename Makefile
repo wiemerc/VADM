@@ -1,12 +1,12 @@
-CXXFILES = $(wildcard *.cxx)
-OBJS = $(patsubst %.cxx, %.o, $(CXXFILES))
+CXXFILES := $(wildcard *.cxx)
+OBJS     := $(patsubst %.cxx, %.o, $(CXXFILES))
 
-CXX = clang++
-CXXFLAGS = -m32 -Wall -Wno-c++11-extensions -g -I/opt/local/include -I/usr/local/include -I/opt/m68k-amigaos/os-include
-LDFLAGS = -arch i386 -L/opt/local/lib -L/usr/local/lib
-LDLIBS = -llog4cxx -lPocoFoundation
+CXX      := clang++
+CXXFLAGS := -m32 -Wall -Wno-c++11-extensions -g -I/opt/local/include -I/usr/local/include -I/opt/m68k-amigaos/m68k-amigaos/ndk/include
+LDFLAGS  := -arch i386 -L/opt/local/lib -L/usr/local/lib
+LDLIBS   := -llog4cxx -lPocoFoundation
 
-.PHONY: clean Musashi Examples
+.PHONY: clean Musashi Examples Poco
 
 vadm: Musashi $(OBJS) Examples
 	$(CXX) $(LDFLAGS) -o $@ $(OBJS) Musashi/*.o $(LDLIBS)
