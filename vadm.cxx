@@ -149,8 +149,8 @@ int main(int argc, char *argv[])
             return 1;
         }
     }
+    cmdline[strlen(cmdline) - 1] = '\n';        // replace trailing space with LF
     cmdline[1023] = 0;                          // terminate string in all cases
-    LOG4CXX_DEBUG(g_logger, "command line: " << cmdline);
     m68k_set_reg(M68K_REG_A0, PTR_HOST_TO_M68K(cmdline));
     m68k_set_reg(M68K_REG_D0, strlen(cmdline));
     
