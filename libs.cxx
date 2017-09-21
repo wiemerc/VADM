@@ -54,6 +54,10 @@ ExecLibrary::ExecLibrary(uint32_t base)
 	m_funcmap[0x84]  = (FUNCPTR) &ExecLibrary::Forbid;
 	m_funcmap[0x8a]  = (FUNCPTR) &ExecLibrary::Permit;
 	m_funcmap[0x17a] = (FUNCPTR) &ExecLibrary::ReplyMsg;
+	m_funcmap[0xea] = (FUNCPTR) &ExecLibrary::Insert;
+	m_funcmap[0xfc] = (FUNCPTR) &ExecLibrary::Remove;
+	m_funcmap[0xf0] = (FUNCPTR) &ExecLibrary::AddHead;
+	m_funcmap[0x102] = (FUNCPTR) &ExecLibrary::RemHead;
 
     // lines below have been generated with the following command line:
     // grep syscall exec_pragmas.h | perl -nale 'print "m_funcmap[0x$F[3]] = nullptr;    // $F[2]"'
@@ -83,11 +87,7 @@ ExecLibrary::ExecLibrary(uint32_t base)
 	m_funcmap[0xd8] = nullptr;    // AvailMem
 	m_funcmap[0xde] = nullptr;    // AllocEntry
 	m_funcmap[0xe4] = nullptr;    // FreeEntry
-	m_funcmap[0xea] = nullptr;    // Insert
-	m_funcmap[0xf0] = nullptr;    // AddHead
 	m_funcmap[0xf6] = nullptr;    // AddTail
-	m_funcmap[0xfc] = nullptr;    // Remove
-	m_funcmap[0x102] = nullptr;    // RemHead
 	m_funcmap[0x108] = nullptr;    // RemTail
 	m_funcmap[0x10e] = nullptr;    // Enqueue
 	m_funcmap[0x114] = nullptr;    // FindName
@@ -276,6 +276,85 @@ uint32_t ExecLibrary::ReplyMsg()
     // TODO: For now this routine has no functionality because it's only called by the
     //       startup code to reply the intial message to the Workbench. Once we
     //       implement messaging, we need to implement the correct functionality.
+    return 0;
+}
+
+
+//
+// list management functions of ExecLibrary (algorithms taken from Wikipedia)
+//
+
+uint32_t ExecLibrary::AddHead()
+{
+    LOG4CXX_DEBUG(g_logger, "ExecLibrary::AddHead() has been called");
+    struct List *list = (struct List *) PTR_M68K_TO_HOST(m68k_get_reg(NULL, M68K_REG_A0));
+    struct Node *node = (struct Node *) PTR_M68K_TO_HOST(m68k_get_reg(NULL, M68K_REG_A1));
+    struct Node *before = (struct Node *) PTR_M68K_TO_HOST(list->lh_Head);
+    list->lh_Head = (struct Node *) PTR_HOST_TO_M68K(node);
+    if (list->lh_Head == nullptr) {
+        list->lh_Tail = (struct Node *) PTR_HOST_TO_M68K(node);
+        node->ln_Pred = nullptr;
+        node->ln_Succ = nullptr;
+    }
+    else {
+        node->ln_Pred = before->ln_Pred;
+        node->ln_Succ = (struct Node *) PTR_HOST_TO_M68K(before);
+        before->ln_Pred = (struct Node *) PTR_HOST_TO_M68K(node);
+    }
+    return 0;
+}
+
+
+uint32_t ExecLibrary::RemHead()
+{
+    LOG4CXX_DEBUG(g_logger, "ExecLibrary::RemHead() has been called");
+    struct List *list = (struct List *) PTR_M68K_TO_HOST(m68k_get_reg(NULL, M68K_REG_A0));
+    struct Node *node = (struct Node *) PTR_M68K_TO_HOST(list->lh_Head);
+    list->lh_Head = node->ln_Succ;
+    if (list->lh_Head != nullptr) {
+        ((struct Node *) PTR_M68K_TO_HOST(list->lh_Head))->ln_Pred = nullptr;
+    }
+    return PTR_HOST_TO_M68K(node);
+}
+
+
+uint32_t ExecLibrary::Insert()
+{
+    LOG4CXX_DEBUG(g_logger, "ExecLibrary::Insert() has been called");
+    struct List *list = (struct List *) PTR_M68K_TO_HOST(m68k_get_reg(NULL, M68K_REG_A0));
+    struct Node *node = (struct Node *) PTR_M68K_TO_HOST(m68k_get_reg(NULL, M68K_REG_A1));
+    struct Node *after = (struct Node *) m68k_get_reg(NULL, M68K_REG_A2);
+    if (after == nullptr) {
+        // special case: insert node at the head of the list
+        AddHead();
+    }
+    else {
+        after = (struct Node *) PTR_M68K_TO_HOST(after);
+        node->ln_Pred = (struct Node *) PTR_HOST_TO_M68K(after);
+        node->ln_Succ = after->ln_Succ;
+        if (after->ln_Succ == nullptr) {
+            list->lh_Tail = (struct Node *) PTR_HOST_TO_M68K(node);
+        }
+        else {
+            ((struct Node *) PTR_M68K_TO_HOST(after->ln_Succ))->ln_Pred = (struct Node *) PTR_HOST_TO_M68K(node);
+        }
+        after->ln_Succ = (struct Node *) PTR_HOST_TO_M68K(node);
+    }
+    return 0;
+}
+
+
+uint32_t ExecLibrary::Remove()
+{
+    LOG4CXX_DEBUG(g_logger, "ExecLibrary::Remove() has been called");
+    struct Node *node = (struct Node *) PTR_M68K_TO_HOST(m68k_get_reg(NULL, M68K_REG_A1));
+    // TODO: What about the list if the node is the head / tail node?
+    if (node->ln_Pred != nullptr) {
+        ((struct Node *) PTR_M68K_TO_HOST(node->ln_Pred))->ln_Succ = node->ln_Succ;
+    }
+    if (node->ln_Succ != nullptr) {
+        ((struct Node *) PTR_M68K_TO_HOST(node->ln_Succ))->ln_Pred = node->ln_Pred;
+    }
     return 0;
 }
 

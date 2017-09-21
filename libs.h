@@ -85,6 +85,10 @@ private:
     uint32_t Forbid();
     uint32_t Permit();
     uint32_t ReplyMsg();
+    uint32_t AddHead();
+    uint32_t RemHead();
+    uint32_t Insert();
+    uint32_t Remove();
 };
 
 
