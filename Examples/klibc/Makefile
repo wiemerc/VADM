@@ -1,8 +1,7 @@
-OBJS = memset.o snprintf.o strchr.o strcmp.o strlen.o strncat.o strncpy.o vsnprintf.o
+OBJS := memset.o snprintf.o strchr.o strcmp.o strlen.o strncat.o strncpy.o printf.o vfprintf.o vsnprintf.o
 
-CC = /opt/m68k-amigaos/bin/m68k-amigaos-gcc
-CFLAGS = -Wall -g -I../linux-usr-include -I../linux-usr-include/i386-linux-gnu -D__KLIBC__
-LDFLAGS = -s -nostdlib
+CC     := /opt/m68k-amigaos/bin/m68k-amigaos-gcc
+CFLAGS := -Wall -g -I../include -I../include/i386-linux-gnu -D__KLIBC__
 
 klibc: $(OBJS)
 	touch klibc

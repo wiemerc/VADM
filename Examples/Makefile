@@ -1,6 +1,6 @@
-CC = /opt/m68k-amigaos/bin/m68k-amigaos-gcc
-CFLAGS = -Wall -g -Ilinux-usr-include -Ilinux-usr-include/i386-linux-gnu -D__KLIBC__
-LDFLAGS = -s -nostdlib
+CC      := /opt/m68k-amigaos/bin/m68k-amigaos-gcc
+CFLAGS  := -Wall -g
+LDFLAGS := -s -nostdlib
 
 .PHONY: all clean klibc libgcc
 
