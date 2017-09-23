@@ -99,6 +99,8 @@ private:
     uint32_t UnLock();
     uint32_t Examine();
     uint32_t ExNext();
+    uint32_t Output();
+    uint32_t Write();
 };
 
 

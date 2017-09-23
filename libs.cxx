@@ -49,7 +49,6 @@ ExecLibrary::ExecLibrary(uint32_t base)
     m_funcmap[0x228] = (FUNCPTR) &ExecLibrary::OpenLibrary;
     m_funcmap[0x2ac] = (FUNCPTR) &ExecLibrary::AllocVec;
     m_funcmap[0x2b2] = (FUNCPTR) &ExecLibrary::FreeVec;
-    m_funcmap[0x126] = (FUNCPTR) &ExecLibrary::FindTask;
 
     // lines below have been generated with the following command line:
     // grep syscall exec_pragmas.h | perl -nale 'print "m_funcmap[0x$F[3]] = nullptr;    // $F[2]"'
@@ -91,6 +90,7 @@ ExecLibrary::ExecLibrary(uint32_t base)
 	m_funcmap[0x114] = nullptr;    // FindName
 	m_funcmap[0x11a] = nullptr;    // AddTask
 	m_funcmap[0x120] = nullptr;    // RemTask
+    m_funcmap[0x126] = nullptr;    // FindTask
 	m_funcmap[0x12c] = nullptr;    // SetTaskPri
 	m_funcmap[0x132] = nullptr;    // SetSignal
 	m_funcmap[0x138] = nullptr;    // SetExcept
@@ -228,15 +228,15 @@ DOSLibrary::DOSLibrary(uint32_t base) {
     m_funcmap[0x066] = (FUNCPTR) & DOSLibrary::Examine;
     m_funcmap[0x06c] = (FUNCPTR) & DOSLibrary::ExNext;
     m_funcmap[0x084] = (FUNCPTR) & DOSLibrary::IoErr;
+    m_funcmap[0x3c] = (FUNCPTR) & DOSLibrary::Output;
+    m_funcmap[0x30] = (FUNCPTR) & DOSLibrary::Write;
 
     // lines below have been generated with the following command line:
     // grep libcall dos_pragmas.h | perl -nale 'print "m_funcmap[0x$F[4]] = nullptr;    // $F[3]"'
     m_funcmap[0x1e] = nullptr;    // Open
     m_funcmap[0x24] = nullptr;    // Close
     m_funcmap[0x2a] = nullptr;    // Read
-    m_funcmap[0x30] = nullptr;    // Write
     m_funcmap[0x36] = nullptr;    // Input
-    m_funcmap[0x3c] = nullptr;    // Output
     m_funcmap[0x42] = nullptr;    // Seek
     m_funcmap[0x48] = nullptr;    // DeleteFile
     m_funcmap[0x4e] = nullptr;    // Rename
@@ -459,7 +459,7 @@ uint32_t DOSLibrary::Lock()
 {
     LOG4CXX_DEBUG(g_logger, "DOSLibrary::Lock() has been called");
     const char *path    = (const char *) PTR_M68K_TO_HOST(m68k_get_reg(NULL, M68K_REG_D1));
-    const uint32_t mode = SWAP_BYTES(m68k_get_reg(NULL, M68K_REG_D2));
+    const uint32_t mode = m68k_get_reg(NULL, M68K_REG_D2);
     LOG4CXX_DEBUG(g_logger, "path = " << path << ", mode = " << mode);
 
     // As Lock() was typically used to Examine() a file or directory, and this does not require a lock on neither
@@ -565,4 +565,46 @@ uint32_t DOSLibrary::IoErr()
 {
     LOG4CXX_DEBUG(g_logger, "DOSLibrary::IoErr() has been called");
     return m_errno;
+}
+
+
+//
+// Output
+// returns: BPTR to FileHandle structure
+//
+uint32_t DOSLibrary::Output()
+{
+    LOG4CXX_DEBUG(g_logger, "DOSLibrary::Output() has been called");
+    struct FileHandle *fh = ((struct FileHandle *) g_memmgr->alloc(sizeof(struct FileHandle)));
+    // We store the address of the standard output stream in fh_Buf, so that Write() can refer to it.
+    fh->fh_Buf = (uint32_t) &std::cout;
+    return PTR_C_TO_BCPL(PTR_HOST_TO_M68K(fh));
+}
+
+
+//
+// Write
+// D1: BPTR to struct FileHandle
+// D2: pointer to buffer
+// D3 size of buffer
+// returns: number of bytes written or -1 in case of an error
+//
+uint32_t DOSLibrary::Write()
+{
+    LOG4CXX_DEBUG(g_logger, "DOSLibrary::Write() has been called");
+    struct FileHandle *fh = (struct FileHandle *) PTR_M68K_TO_HOST(PTR_BCPL_TO_C(m68k_get_reg(NULL, M68K_REG_D1)));
+    // Write() actually supported writing arbitrary objects but C++ output streams only
+    // support character streams, so we treat the buffer as a character buffer.
+    const char *buffer    = (const char *) PTR_M68K_TO_HOST(m68k_get_reg(NULL, M68K_REG_D2));
+    uint32_t buflen       = m68k_get_reg(NULL, M68K_REG_D3);
+    
+    std::ostream *os = (std::ostream *) fh->fh_Buf;
+    os->write(buffer, buflen);
+    os->flush();
+    if (os->good()) {
+        return buflen;
+    }
+    else {
+        return -1;
+    }
 }
