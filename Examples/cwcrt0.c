@@ -10,14 +10,21 @@
 //
 
 
-#include "proto/exec.h"
+#include <stdio.h>
+#include <stdint.h>
+#include <proto/exec.h>
+#include <proto/dos.h>
 
 
+// The library name needs to be defined as global *array* (not pointer), otherwise GCC
+// will treat it as a constant and put it at the *beginning* of the code block, which is
+// a problem because there is no start address in the Hunk format (unlike ELF or PE).
 static char libname[] = "dos.library";
-static struct ExecBase **AbsExecBase = (struct ExecBase **) 4;
+
 struct ExecBase *SysBase;
 struct DosLibrary *DOSBase;
-
+FILE *stdout;
+FILE *stdin;
 
 int cwmain(int argc, char **argv);
 
@@ -28,9 +35,18 @@ void start()
     asm("move.l     A0, -(A7)\n"
         "move.l     D0, -(A7)\n");
 
-    SysBase = *AbsExecBase;
+    // initialize library symbols
+    SysBase = *((struct ExecBase **) 0x00000004);
     if ((DOSBase = (struct DosLibrary *) OpenLibrary(libname, 0L)) == NULL)
         return;
+
+    // initialize stdout and stdin
+    if ((stdin = (FILE *) AllocVec(sizeof(FILE), MEMF_CLEAR)) == NULL)
+        return;
+    stdin->_fileno = (int32_t) Input();
+    if ((stdout = (FILE *) AllocVec(sizeof(FILE), MEMF_CLEAR)) == NULL)
+        return;
+    stdout->_fileno = (int32_t) Output();
 
     // call cwmain()
     asm("jsr        _cwmain\n"

@@ -1,6 +1,6 @@
---- vfprintf.c.orig	2017-09-23 18:27:37.000000000 +0200
-+++ vfprintf.c	2017-09-23 18:28:41.000000000 +0200
-@@ -5,11 +5,11 @@
+--- vfprintf.c.orig	2017-09-24 11:35:58.000000000 +0200
++++ vfprintf.c	2017-09-24 11:43:39.000000000 +0200
+@@ -5,7 +5,7 @@
  #include <stdio.h>
  #include <string.h>
  #include <stdarg.h>
@@ -9,15 +9,10 @@
  
  #define BUFFER_SIZE	32768
  
--int vfprintf(FILE * file, const char *format, va_list ap)
-+int vfprintf(BPTR file, const char *format, va_list ap)
- {
- 	int rv;
- 	char buffer[BUFFER_SIZE];
 @@ -22,5 +22,5 @@
  	if (rv > BUFFER_SIZE - 1)
  		rv = BUFFER_SIZE - 1;
  
 -	return _fwrite(buffer, rv, file);
-+    return Write(file, buffer, rv);
++    return Write((BPTR) file->_fileno, buffer, rv);
  }

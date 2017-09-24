@@ -369,7 +369,7 @@ extern int sprintf (char *__restrict __s,
 
    This function is a possible cancellation point and therefore not
    marked with __THROW.  */
-extern int vfprintf (BPTR __s, const char *__restrict __format,
+extern int vfprintf (FILE *__restrict __s, const char *__restrict __format,
 		     _G_va_list __arg);
 /* Write formatted output to stdout from argument list ARG.
 

@@ -228,6 +228,7 @@ DOSLibrary::DOSLibrary(uint32_t base) {
     m_funcmap[0x066] = (FUNCPTR) & DOSLibrary::Examine;
     m_funcmap[0x06c] = (FUNCPTR) & DOSLibrary::ExNext;
     m_funcmap[0x084] = (FUNCPTR) & DOSLibrary::IoErr;
+    m_funcmap[0x36] = (FUNCPTR) & DOSLibrary::Input;
     m_funcmap[0x3c] = (FUNCPTR) & DOSLibrary::Output;
     m_funcmap[0x30] = (FUNCPTR) & DOSLibrary::Write;
 
@@ -236,7 +237,6 @@ DOSLibrary::DOSLibrary(uint32_t base) {
     m_funcmap[0x1e] = nullptr;    // Open
     m_funcmap[0x24] = nullptr;    // Close
     m_funcmap[0x2a] = nullptr;    // Read
-    m_funcmap[0x36] = nullptr;    // Input
     m_funcmap[0x42] = nullptr;    // Seek
     m_funcmap[0x48] = nullptr;    // DeleteFile
     m_funcmap[0x4e] = nullptr;    // Rename
@@ -565,6 +565,20 @@ uint32_t DOSLibrary::IoErr()
 {
     LOG4CXX_DEBUG(g_logger, "DOSLibrary::IoErr() has been called");
     return m_errno;
+}
+
+
+//
+// Input
+// returns: BPTR to FileHandle structure
+//
+uint32_t DOSLibrary::Input()
+{
+    LOG4CXX_DEBUG(g_logger, "DOSLibrary::Input() has been called");
+    struct FileHandle *fh = ((struct FileHandle *) g_memmgr->alloc(sizeof(struct FileHandle)));
+    // We store the address of the standard output stream in fh_Buf, so that Write() can refer to it.
+    fh->fh_Buf = (uint32_t) &std::cin;
+    return PTR_C_TO_BCPL(PTR_HOST_TO_M68K(fh));
 }
 
 
